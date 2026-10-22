@@ -1,0 +1,8 @@
+{
+  "appId": "com.pgdshop.pos",
+  "appName": "PGDShop POS",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
