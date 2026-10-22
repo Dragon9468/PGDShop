@@ -1643,6 +1643,8 @@ select option {
   border-radius: var(--radius-lg);
   padding: 14px;
   height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .cart-header {
@@ -1651,6 +1653,7 @@ select option {
   align-items: center;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .cart-title {
@@ -1661,6 +1664,7 @@ select option {
 
 .cart-items-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin: 10px 0;
   padding-right: 2px;
@@ -1737,6 +1741,8 @@ select option {
 .cart-summary {
   border-top: 1px solid var(--border-color);
   padding-top: 10px;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .summary-row {
