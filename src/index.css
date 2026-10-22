@@ -1449,7 +1449,9 @@ select option {
   grid-template-columns: 1fr 380px;
   gap: 14px;
   padding: 14px;
-  height: calc(100vh - 58px);
+  height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  box-sizing: border-box;
   overflow: hidden;
 }
 
