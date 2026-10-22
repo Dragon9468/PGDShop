@@ -10,8 +10,9 @@ import {
   Barcode,
   Sparkles,
   Store,
-  CreditCard,
-  Smile,
+  Trash2,
+  Check,
+  Printer,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -24,7 +25,6 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   const [totalAmount, setTotalAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
-  const [orderCode, setOrderCode] = useState('PGD261022-001');
 
   // Trạng thái thanh toán
   const [isSuccess, setIsSuccess] = useState(false);
@@ -32,45 +32,47 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   const [paidAmount, setPaidAmount] = useState(0);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  // Ô quét mã tự phục vụ cho khách
-  const [selfScanBarcode, setSelfScanBarcode] = useState('');
+  // Lắng nghe phím bấm từ máy quét barcode khi cắm trực tiếp vào màn hình khách
+  const [barcodeBuffer, setBarcodeBuffer] = useState('');
 
   useEffect(() => {
-    // Đăng ký lắng nghe sự kiện đồng bộ từ Màn Hình Thu Ngân
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Khi máy quét barcode nhấn Enter
+      if (e.key === 'Enter') {
+        const scanned = barcodeBuffer.trim();
+        setBarcodeBuffer('');
+        if (!scanned) return;
+
+        if (scanned === 'THANHTOAN' || scanned === 'CHECKOUT') {
+          handleTriggerPayment();
+        } else if (scanned === 'XOA' || scanned === 'CLEAR' || scanned === 'HUY') {
+          handleTriggerClear();
+        } else {
+          soundService.playBarcodeBeep();
+          dualScreenSync.customerScannedBarcode(scanned);
+        }
+      } else if (e.key.length === 1) {
+        setBarcodeBuffer((prev) => prev + e.key);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [barcodeBuffer, finalAmount]);
+
+  useEffect(() => {
+    // Đăng ký nhận đồng bộ từ màn hình thu ngân
     const unsubscribe = dualScreenSync.subscribe((msg) => {
       if (msg.type === 'SYNC_CART' && msg.payload) {
         setCart(msg.payload.items || []);
         setTotalAmount(msg.payload.totalAmount || 0);
         setDiscountAmount(msg.payload.discountAmount || 0);
         setFinalAmount(msg.payload.finalAmount || 0);
-        if (msg.payload.orderCode) setOrderCode(msg.payload.orderCode);
       } else if (msg.type === 'PAYMENT_COMPLETED' && msg.payload) {
-        setIsSuccess(true);
-        setPaymentMethod(msg.payload.paymentMethod || 'VIETQR');
-        setPaidAmount(msg.payload.paidAmount || finalAmount);
-
-        // Hiệu ứng pháo hoa chúc mừng khách
-        confetti({
-          particleCount: 150,
-          spread: 90,
-          origin: { y: 0.6 },
-        });
-
-        // Đếm ngược 3 giây tự động trở về màn hình chờ đón khách sau
-        let left = settings.autoClearDelaySeconds || 3;
-        setCountdown(left);
-        const timer = setInterval(() => {
-          left -= 1;
-          setCountdown(left);
-          if (left <= 0) {
-            clearInterval(timer);
-            setIsSuccess(false);
-            setCart([]);
-            setTotalAmount(0);
-            setFinalAmount(0);
-            setCountdown(null);
-          }
-        }, 1000);
+        triggerSuccessScreen(
+          msg.payload.paymentMethod || 'VIETQR',
+          msg.payload.paidAmount || finalAmount
+        );
       } else if (msg.type === 'CLEAR_CART') {
         setIsSuccess(false);
         setCart([]);
@@ -81,67 +83,100 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
     });
 
     return () => unsubscribe();
-  }, [finalAmount, settings.autoClearDelaySeconds]);
+  }, [finalAmount]);
 
-  // Khách tự quét mã barcode
-  const handleCustomerScanSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selfScanBarcode.trim()) return;
+  // Kích hoạt thanh toán thành công
+  const triggerSuccessScreen = (method: 'CASH' | 'VIETQR', amount: number) => {
+    setIsSuccess(true);
+    setPaymentMethod(method);
+    setPaidAmount(amount);
 
-    soundService.playBarcodeBeep();
-    dualScreenSync.customerScannedBarcode(selfScanBarcode.trim());
-    setSelfScanBarcode('');
+    confetti({ particleCount: 130, spread: 80, origin: { y: 0.5 } });
+
+    let left = settings.autoClearDelaySeconds || 3;
+    setCountdown(left);
+    const timer = setInterval(() => {
+      left -= 1;
+      setCountdown(left);
+      if (left <= 0) {
+        clearInterval(timer);
+        setIsSuccess(false);
+        setCart([]);
+        setTotalAmount(0);
+        setFinalAmount(0);
+        setCountdown(null);
+      }
+    }, 1000);
   };
 
+  // Hành động khi quét barcode "THANHTOAN"
+  const handleTriggerPayment = () => {
+    if (cart.length === 0 || finalAmount <= 0) return;
+    soundService.announceTransferSuccess(finalAmount);
+    dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, '');
+    triggerSuccessScreen('VIETQR', finalAmount);
+  };
+
+  // Hành động khi quét barcode "XOA"
+  const handleTriggerClear = () => {
+    soundService.playBarcodeBeep();
+    soundService.speakVietnamese('Đã xóa giỏ hàng');
+    dualScreenSync.clearCart();
+    setCart([]);
+    setTotalAmount(0);
+    setFinalAmount(0);
+  };
+
+  // Tự động sinh mã VietQR động theo đúng tổng tiền hiện tại
   const dynamicQrUrl = vietqrService.generateDynamicQRUrl(
     settings.bankConfig,
     finalAmount,
-    orderCode
+    'PGD' + Math.floor(100 + Math.random() * 900)
   );
 
   return (
-    <div className="cfd-container">
-      {/* NẾU ĐÃ THANH TOÁN THÀNH CÔNG: MÀN HÌNH CHÚC MỪNG TOÀN DIỆN */}
+    <div className="cfd-fixed-container">
+      {/* NẾU ĐÃ THANH TOÁN THÀNH CÔNG */}
       {isSuccess ? (
         <div
           style={{
             gridColumn: '1 / -1',
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(15, 23, 42, 0.9)',
+            background: 'var(--bg-card)',
             backdropFilter: 'blur(30px)',
-            borderRadius: '24px',
-            border: '2px solid #10b981',
-            padding: '60px 40px',
-            boxShadow: '0 0 60px rgba(16, 185, 129, 0.4)',
+            borderRadius: '16px',
+            border: '2px solid var(--primary)',
+            padding: '24px',
             textAlign: 'center',
-            animation: 'modalIn 0.3s ease',
+            boxSizing: 'border-box',
           }}
         >
           <div
             style={{
-              width: '120px',
-              height: '120px',
+              width: '80px',
+              height: '80px',
               borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.2)',
+              background: 'var(--accent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '24px',
-              border: '2px solid #10b981',
+              marginBottom: '16px',
+              border: '2px solid var(--primary)',
             }}
           >
-            <CheckCircle size={72} color="#10b981" />
+            <CheckCircle size={52} color="var(--primary)" />
           </div>
 
-          <h1 style={{ fontSize: '3rem', fontWeight: 800, color: '#10b981', marginBottom: '12px' }}>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>
             THANH TOÁN THÀNH CÔNG!
           </h1>
 
-          <p style={{ fontSize: '1.4rem', color: '#cbd5e1', marginBottom: '16px' }}>
-            {paymentMethod === 'VIETQR' ? 'Chuyển khoản VietQR 24/7' : 'Thanh toán tiền mặt tại quầy'}
+          <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            {paymentMethod === 'VIETQR' ? 'Chuyển khoản VietQR 24/7' : 'Thanh toán tiền mặt'}
           </p>
 
           <div
@@ -150,103 +185,61 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               color: '#fff',
-              background: 'rgba(255, 255, 255, 0.06)',
-              padding: '12px 36px',
-              borderRadius: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              marginBottom: '24px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              padding: '10px 32px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)',
+              marginBottom: '16px',
             }}
           >
             {new Intl.NumberFormat('vi-VN').format(paidAmount)} VNĐ
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '1.2rem' }}>
-            <Smile size={24} />
-            <span>Cảm ơn Quý Khách & Hẹn Gặp Lại!</span>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+            Cảm ơn Quý Khách!
           </div>
 
           {countdown !== null && (
-            <div style={{ marginTop: '28px', color: '#64748b', fontSize: '1rem' }}>
-              Sẵn sàng cho khách tiếp theo trong: <b style={{ color: '#fff' }}>{countdown} giây</b>
+            <div style={{ marginTop: '20px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Đón khách tiếp theo trong: <b style={{ color: '#fff' }}>{countdown}s</b>
             </div>
           )}
         </div>
       ) : (
         <>
-          {/* CỘT TRÁI: GIỎ HÀNG CỦA KHÁCH + TỰ QUÉT MÃ */}
-          <div className="cfd-cart-card">
-            {/* Header Màn Hình Khách */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Store size={32} color="#38bdf8" />
-                <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>{settings.storeName}</h2>
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Màn hình đối diện khách hàng</p>
-                </div>
+          {/* CỘT TRÁI: GIỎ HÀNG THỰC TẾ CỦA KHÁCH */}
+          <div className="cfd-column">
+            {/* Header gọn gàng: Tên shop */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Store size={22} color="var(--primary)" />
+                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>{settings.storeName}</span>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>MÃ ĐƠN HÀNG</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#38bdf8' }}>{orderCode}</div>
-              </div>
+              <span className="badge badge-success">Tự Quét Thanh Toán</span>
             </div>
 
-            {/* Khung Khách Tự Quét Barcode */}
-            <form onSubmit={handleCustomerScanSubmit} style={{ margin: '16px 0' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '12px',
-                  padding: '10px 16px',
-                }}
-              >
-                <Barcode size={24} color="#38bdf8" />
-                <input
-                  type="text"
-                  placeholder="Quý khách có thể tự quét mã vạch sản phẩm tại đây..."
-                  value={selfScanBarcode}
-                  onChange={(e) => setSelfScanBarcode(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    color: '#fff',
-                    fontSize: '1rem',
-                    width: '100%',
-                  }}
-                />
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ padding: '6px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-                >
-                  Quét
-                </button>
-              </div>
-            </form>
-
-            {/* Danh sách sản phẩm trong giỏ */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', margin: '8px 0' }}>
+            {/* Danh sách món trong giỏ (co giãn vừa khít 1 màn hình) */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '10px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {cart.length === 0 ? (
                 <div
                   style={{
+                    height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    height: '240px',
-                    color: '#64748b',
-                    gap: '12px',
+                    color: 'var(--text-muted)',
+                    gap: '10px',
+                    textAlign: 'center',
                   }}
                 >
-                  <ShoppingCart size={54} strokeWidth={1.5} color="#475569" />
-                  <p style={{ fontSize: '1.2rem', color: '#94a3b8' }}>Giỏ hàng hiện đang trống</p>
-                  <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                    Thu ngân hoặc Quý khách vui lòng quét mã vạch sản phẩm để bắt đầu
-                  </p>
+                  <ShoppingCart size={48} strokeWidth={1.5} color="var(--text-muted)" />
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Giỏ hàng đang trống
+                  </div>
+                  <div style={{ fontSize: '0.85rem' }}>
+                    Quét mã vạch sản phẩm để bắt đầu tính tiền
+                  </div>
                 </div>
               ) : (
                 cart.map((item, index) => (
@@ -257,23 +250,23 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       background: 'rgba(255, 255, 255, 0.03)',
-                      padding: '12px 16px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{item.product.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                        Đơn giá: {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
+                      <div style={{ fontSize: '0.98rem', fontWeight: 600, color: '#fff' }}>{item.product.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
                         {new Intl.NumberFormat('vi-VN').format(item.subtotal)}đ
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 600 }}>
-                        Số lượng: x{item.quantity}
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        SL: x{item.quantity}
                       </div>
                     </div>
                   </div>
@@ -281,78 +274,147 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
               )}
             </div>
 
-            {/* Tổng hóa đơn */}
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#94a3b8', fontSize: '1.1rem' }}>
-                <span>Tổng tiền hàng:</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{new Intl.NumberFormat('vi-VN').format(totalAmount)}đ</span>
-              </div>
-              {discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#f87171', fontSize: '1.1rem' }}>
-                  <span>Chiết khấu / Giảm giá:</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>-{new Intl.NumberFormat('vi-VN').format(discountAmount)}đ</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '12px' }}>
-                <span style={{ fontSize: '1.4rem', fontWeight: 800 }}>TỔNG THANH TOÁN:</span>
-                <span style={{ fontSize: '2.4rem', fontWeight: 800, color: '#10b981', fontFamily: 'var(--font-mono)', textShadow: '0 0 20px rgba(16, 185, 129, 0.4)' }}>
+            {/* Tổng tiền thanh toán (Luôn ghim dưới chân cột trái) */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>TỔNG TIỀN:</span>
+                <span
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: 800,
+                    color: 'var(--primary)',
+                    fontFamily: 'var(--font-mono)',
+                    textShadow: '0 0 16px var(--accent)',
+                  }}
+                >
                   {new Intl.NumberFormat('vi-VN').format(finalAmount)} VNĐ
                 </span>
               </div>
             </div>
+
+            {/* 2 MÃ BARCODE ĐẶC BIỆT: THANH TOÁN & XÓA */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '8px' }}>
+              {/* Nút / Mã Barcode THANH TOÁN */}
+              <div
+                className="cfd-barcode-sticker"
+                onClick={handleTriggerPayment}
+                title="Bấm hoặc bóp cò súng quét mã này để xác nhận đã chuyển tiền"
+              >
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    MÃ QUÉT XÁC NHẬN:
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
+                    *THANHTOAN*
+                  </div>
+                </div>
+                <div style={{ background: 'var(--accent)', padding: '6px', borderRadius: '6px' }}>
+                  <Check size={18} color="var(--primary)" />
+                </div>
+              </div>
+
+              {/* Nút / Mã Barcode XÓA GIỎ */}
+              <div
+                className="cfd-barcode-sticker"
+                onClick={handleTriggerClear}
+                title="Bấm hoặc bóp cò súng quét mã này để xóa giỏ hàng"
+              >
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 700 }}>
+                    MÃ QUÉT HỦY / LÀM LẠI:
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
+                    *XOA*
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '6px', borderRadius: '6px' }}>
+                  <Trash2 size={18} color="#f87171" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* CỘT PHẢI: MÃ VIETQR ĐỘNG TOÁN BỘ MÀN HÌNH */}
-          <div className="cfd-qr-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <QrCode size={28} color="#38bdf8" />
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>QUÉT MÃ ĐỂ THANH TOÁN 24/7</h2>
-            </div>
-
-            <p style={{ fontSize: '0.95rem', color: '#94a3b8', maxWidth: '380px', lineHeight: 1.4 }}>
-              Mở ứng dụng ngân hàng hoặc ví điện tử bất kỳ quét mã bên dưới. Số tiền và nội dung sẽ được điền tự động chính xác!
-            </p>
-
-            {/* Ảnh VietQR động */}
-            <div className="vietqr-image-box" style={{ maxWidth: '340px' }}>
-              <img src={dynamicQrUrl} alt="Mã VietQR Động Quét Thanh Toán" />
-            </div>
-
-            {/* Chi tiết chuyển khoản */}
-            <div
-              style={{
-                width: '100%',
-                maxWidth: '380px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '14px',
-                textAlign: 'left',
-                fontSize: '0.95rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Ngân hàng thụ hưởng:</span>
-                <b style={{ color: '#fff' }}>{settings.bankConfig.bankId}</b>
+          {/* CỘT PHẢI: MÃ VIETQR TỰ ĐỘNG SINH (DYNAMIC QR) */}
+          <div
+            className="cfd-column"
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              background: 'var(--bg-card)',
+            }}
+          >
+            {cart.length === 0 ? (
+              <div style={{ padding: '20px', color: 'var(--text-muted)' }}>
+                <QrCode size={64} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  MÃ QR THANH TOÁN TỰ ĐỘNG
+                </h3>
+                <p style={{ fontSize: '0.85rem', maxWidth: '300px', lineHeight: 1.4 }}>
+                  Mã QR sẽ tự động hiển thị ngay khi quý khách quét món hàng đầu tiên
+                </p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Số tài khoản:</span>
-                <b style={{ color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>{settings.bankConfig.accountNo}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Chủ tài khoản:</span>
-                <b style={{ color: '#fff' }}>{settings.bankConfig.accountName}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '6px', marginTop: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Nội dung chuyển:</span>
-                <b style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>{orderCode}</b>
-              </div>
-            </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '6px', color: '#fff' }}>
+                  QUÉT MÃ ĐỂ THANH TOÁN
+                </div>
 
-            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '0.9rem' }}>
-              <div className="pulse-dot"></div>
-              <span>Hệ thống tự động phát loa và in hóa đơn ngay khi nhận tiền</span>
-            </div>
+                {/* Khung ảnh QR tự động co giãn theo chiều cao màn hình */}
+                <div
+                  style={{
+                    background: '#fff',
+                    padding: '8px',
+                    borderRadius: '10px',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                    margin: '6px 0',
+                    maxWidth: 'min(240px, 45vh)',
+                    width: '100%',
+                  }}
+                >
+                  <img
+                    src={dynamicQrUrl}
+                    alt="VietQR Tự Sinh"
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
+                </div>
+
+                {/* Thông tin tài khoản ngắn gọn */}
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: '320px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '0.84rem',
+                    textAlign: 'left',
+                    marginTop: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Ngân hàng:</span>
+                    <b style={{ color: '#fff' }}>{settings.bankConfig.bankId}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Số tài khoản:</span>
+                    <b style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                      {settings.bankConfig.accountNo}
+                    </b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Chủ TK:</span>
+                    <b style={{ color: '#fff' }}>{settings.bankConfig.accountName}</b>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--primary)' }}>
+                  <div className="pulse-dot"></div>
+                  <span>Loa tự động thông báo khi nhận tiền</span>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

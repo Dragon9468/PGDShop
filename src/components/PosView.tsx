@@ -7,22 +7,19 @@ import {
   AppSettings,
 } from '../types';
 import {
-  Search,
   Barcode,
   Trash2,
   Plus,
   Minus,
-  QrCode,
   DollarSign,
   Printer,
   Sparkles,
-  CheckCircle,
   X,
   CreditCard,
+  QrCode,
 } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { dualScreenSync } from '../services/dualScreenSync';
-import { vietqrService } from '../services/vietqrService';
 import { printService } from '../services/printService';
 import { storageService } from '../services/storageService';
 import confetti from 'canvas-confetti';
@@ -37,16 +34,11 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('TatCa');
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [currentOrderCode, setCurrentOrderCode] = useState(vietqrService.generateOrderCode());
-
-  // Modal QR & Thanh toán
-  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [isPaidSuccess, setIsPaidSuccess] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isBarcodeStickerModalOpen, setIsBarcodeStickerModalOpen] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Khởi tạo sản phẩm & lắng nghe sự kiện đồng bộ 2 màn hình
+  // Khởi tạo
   useEffect(() => {
     setProducts(storageService.getProducts());
 
@@ -54,34 +46,56 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     const unsubscribe = dualScreenSync.subscribe((msg) => {
       if (msg.type === 'CUSTOMER_SCANNED_BARCODE' && msg.payload?.barcode) {
         handleScanBarcode(msg.payload.barcode);
+      } else if (msg.type === 'CLEAR_CART') {
+        setCart([]);
+        setDiscountAmount(0);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [products]);
 
-  // Tính toán tổng tiền
+  // Tính tổng tiền
   const totalAmount = cart.reduce((sum, item) => sum + item.subtotal, 0);
   const finalAmount = Math.max(0, totalAmount - discountAmount);
 
-  // Tự động đồng bộ giỏ hàng sang màn hình khách hàng (CFD)
+  // Tự động đồng bộ giỏ hàng sang màn hình phụ (CFD) ngay khi có thay đổi
   useEffect(() => {
     dualScreenSync.syncCartToCustomerDisplay(
       cart,
       totalAmount,
       discountAmount,
       finalAmount,
-      currentOrderCode
+      ''
     );
-  }, [cart, totalAmount, discountAmount, finalAmount, currentOrderCode]);
+  }, [cart, totalAmount, discountAmount, finalAmount]);
 
-  // Bắt sự kiện quét barcode từ máy quét súng USB
+  // Xử lý quét barcode từ súng quét USB
   const handleScanBarcode = (barcode: string) => {
-    const cleanCode = barcode.trim();
+    const cleanCode = barcode.trim().toUpperCase();
     if (!cleanCode) return;
 
+    // 1. Kiểm tra nếu quét mã tiện ích "THANHTOAN"
+    if (cleanCode === 'THANHTOAN' || cleanCode === 'CHECKOUT') {
+      if (cart.length > 0 && finalAmount > 0) {
+        handleTransferSuccessAuto();
+      }
+      setSearchQuery('');
+      return;
+    }
+
+    // 2. Kiểm tra nếu quét mã tiện ích "XOA"
+    if (cleanCode === 'XOA' || cleanCode === 'CLEAR' || cleanCode === 'HUY') {
+      soundService.playBarcodeBeep();
+      soundService.speakVietnamese('Đã xóa giỏ hàng');
+      clearCart();
+      setSearchQuery('');
+      return;
+    }
+
+    // 3. Quét mã sản phẩm thông thường
     const matchedProduct = products.find(
-      (p) => p.barcode.toLowerCase() === cleanCode.toLowerCase()
+      (p) => p.barcode.toUpperCase() === cleanCode
     );
 
     if (matchedProduct) {
@@ -93,7 +107,6 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     }
   };
 
-  // Thêm sản phẩm vào giỏ hàng
   const addToCart = (product: Product) => {
     soundService.playBarcodeBeep();
     setCart((prevCart) => {
@@ -143,29 +156,22 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
   };
 
-  const clearCartForNextCustomer = () => {
+  const clearCart = () => {
     setCart([]);
     setDiscountAmount(0);
-    setCurrentOrderCode(vietqrService.generateOrderCode());
-    setIsPaidSuccess(false);
-    setIsQrModalOpen(false);
-    setCountdown(null);
     dualScreenSync.clearCart();
     barcodeInputRef.current?.focus();
   };
 
   // -------------------------------------------------------------
-  // XỬ LÝ THANH TOÁN TIỀN MẶT
+  // THANH TOÁN TIỀN MẶT
   // -------------------------------------------------------------
   const handleCashPayment = () => {
-    if (cart.length === 0) {
-      alert('Giỏ hàng đang trống!');
-      return;
-    }
+    if (cart.length === 0) return;
 
     const order: PosOrder = {
       id: 'order-' + Date.now(),
-      orderCode: currentOrderCode,
+      orderCode: 'POS' + Date.now().toString().slice(-6),
       cashierName: 'Thu Ngân Quầy',
       items: [...cart],
       totalAmount,
@@ -173,83 +179,55 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       finalAmount,
       paymentMethod: 'CASH',
       paymentStatus: 'PAID',
-      transferContent: currentOrderCode,
+      transferContent: '',
       createdAt: new Date().toISOString(),
       paidAt: new Date().toISOString(),
     };
 
-    // 1. Lưu đơn hàng
     storageService.savePosOrder(order);
-
-    // 2. Phát âm thanh giọng nói qua loa Bluetooth
     soundService.announceCashSuccess(finalAmount);
-
-    // 3. Pháo hoa & đồng bộ báo hoàn thành sang màn hình phụ
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-    dualScreenSync.notifyPaymentSuccess('CASH', finalAmount, currentOrderCode);
+    dualScreenSync.notifyPaymentSuccess('CASH', finalAmount, '');
 
-    // 4. In bill nhiệt tại quầy
+    // In hóa đơn nhiệt
     printService.printThermalReceipt(order, settings);
 
-    // 5. Tự động reset giỏ hàng đón khách tiếp theo sau 2 giây
+    // Tự động clear giỏ hàng đón khách tiếp theo sau 2s
     setTimeout(() => {
-      clearCartForNextCustomer();
+      clearCart();
     }, 2000);
   };
 
   // -------------------------------------------------------------
-  // XỬ LÝ THANH TOÁN CHUYỂN KHOẢN VIETQR
+  // XỬ LÝ KHI KHÁCH / THU NGÂN QUÉT MÃ THANH TOÁN HOẶC CHUYỂN KHOẢN XONG
   // -------------------------------------------------------------
-  const handleOpenVietQR = () => {
-    if (cart.length === 0) {
-      alert('Giỏ hàng đang trống!');
-      return;
-    }
-    setIsQrModalOpen(true);
-  };
-
-  // Giả lập hoặc nhận thông báo ngân hàng chuyển tiền thành công
-  const handleConfirmTransferSuccess = () => {
-    setIsPaidSuccess(true);
+  const handleTransferSuccessAuto = () => {
+    if (cart.length === 0) return;
 
     const order: PosOrder = {
       id: 'order-' + Date.now(),
-      orderCode: currentOrderCode,
-      cashierName: 'Thu Ngân Quầy',
+      orderCode: 'POS' + Date.now().toString().slice(-6),
+      cashierName: 'Tự Phục Vụ / Quầy',
       items: [...cart],
       totalAmount,
       discountAmount,
       finalAmount,
       paymentMethod: 'VIETQR',
       paymentStatus: 'PAID',
-      transferContent: currentOrderCode,
+      transferContent: '',
       createdAt: new Date().toISOString(),
       paidAt: new Date().toISOString(),
     };
 
-    // Lưu vào database
     storageService.savePosOrder(order);
-
-    // Phát âm thanh loa Bluetooth
     soundService.announceTransferSuccess(finalAmount);
+    confetti({ particleCount: 110, spread: 80, origin: { y: 0.5 } });
+    dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, '');
 
-    // Bắn pháo hoa ăn mừng
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
-
-    // Thông báo tức thì sang màn hình khách
-    dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, currentOrderCode);
-
-    // Đếm ngược 3 giây rồi tự động clear giỏ hàng
-    let secondsLeft = settings.autoClearDelaySeconds || 3;
-    setCountdown(secondsLeft);
-    const timer = setInterval(() => {
-      secondsLeft -= 1;
-      setCountdown(secondsLeft);
-      if (secondsLeft <= 0) {
-        clearInterval(timer);
-        clearCartForNextCustomer();
-      }
-    }, 1000);
+    // Tự động clear sau 3s
+    setTimeout(() => {
+      clearCart();
+    }, (settings.autoClearDelaySeconds || 3) * 1000);
   };
 
   // Lọc sản phẩm
@@ -262,23 +240,17 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     return matchesCategory && matchesQuery;
   });
 
-  const dynamicQrUrl = vietqrService.generateDynamicQRUrl(
-    settings.bankConfig,
-    finalAmount,
-    currentOrderCode
-  );
-
   return (
     <div className="pos-layout">
       {/* CỘT TRÁI: DANH MỤC & LƯỚI SẢN PHẨM */}
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Thanh quét Barcode & Tìm kiếm */}
+        {/* Ô quét Barcode & Tìm kiếm */}
         <div className="barcode-search-box">
-          <Barcode size={22} color="#38bdf8" />
+          <Barcode size={22} color="var(--primary)" />
           <input
             ref={barcodeInputRef}
             type="text"
-            placeholder="Quét mã vạch (Barcode súng quét) hoặc gõ tên sản phẩm... [Nhấn Enter]"
+            placeholder="Quét mã vạch (Barcode súng quét) hoặc gõ tên... [Enter]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -291,15 +263,15 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
             >
               <X size={18} />
             </button>
           )}
-          <span className="barcode-badge">Súng Barcode Sẵn Sàng</span>
+          <span className="barcode-badge">Súng Sẵn Sàng</span>
         </div>
 
-        {/* Bộ lọc danh mục */}
+        {/* Danh mục */}
         <div className="category-filter">
           <button
             className={`cat-pill ${selectedCategory === 'TatCa' ? 'active' : ''}`}
@@ -311,25 +283,25 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
             className={`cat-pill ${selectedCategory === 'CheBien_FB' ? 'active' : ''}`}
             onClick={() => setSelectedCategory('CheBien_FB')}
           >
-            ☕ Chế Biến F&B ({products.filter((p) => p.category === 'CheBien_FB').length})
+            ☕ Chế Biến ({products.filter((p) => p.category === 'CheBien_FB').length})
           </button>
           <button
             className={`cat-pill ${selectedCategory === 'TapHoa' ? 'active' : ''}`}
             onClick={() => setSelectedCategory('TapHoa')}
           >
-            🛒 Tạp Hóa / Bán Lẻ ({products.filter((p) => p.category === 'TapHoa').length})
+            🛒 Tạp Hóa ({products.filter((p) => p.category === 'TapHoa').length})
           </button>
           <button
             className={`cat-pill ${selectedCategory === 'BaoBi' ? 'active' : ''}`}
             onClick={() => setSelectedCategory('BaoBi')}
           >
-            📦 Bao Bì Ly Túi ({products.filter((p) => p.category === 'BaoBi').length})
+            📦 Bao Bì ({products.filter((p) => p.category === 'BaoBi').length})
           </button>
           <button
             className={`cat-pill ${selectedCategory === 'VanPhongPham' ? 'active' : ''}`}
             onClick={() => setSelectedCategory('VanPhongPham')}
           >
-            🧾 Vật Tư & Giấy In ({products.filter((p) => p.category === 'VanPhongPham').length})
+            🧾 Vật Tư ({products.filter((p) => p.category === 'VanPhongPham').length})
           </button>
         </div>
 
@@ -340,7 +312,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               key={p.id}
               className="product-card"
               onClick={() => addToCart(p)}
-              title={`Bấm để thêm vào giỏ hàng | Mã: ${p.barcode}`}
+              title={`Mã: ${p.barcode}`}
             >
               {p.isPrepared ? (
                 <span className="product-tag fb">☕ Pha Chế</span>
@@ -356,9 +328,9 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                 </div>
                 <div className="product-stock">
                   {p.isPrepared ? (
-                    <span style={{ color: '#10b981' }}>Sẵn sàng pha chế</span>
+                    <span style={{ color: 'var(--primary)' }}>Sẵn sàng</span>
                   ) : (
-                    <span>Tồn kho: {p.stockQuantity} {p.unit}</span>
+                    <span>Tồn: {p.stockQuantity} {p.unit}</span>
                   )}
                 </div>
               </div>
@@ -367,41 +339,46 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
         </div>
       </div>
 
-      {/* CỘT PHẢI: GIỎ HÀNG THU NGÂN (CART) */}
+      {/* CỘT PHẢI: GIỎ HÀNG THU NGÂN */}
       <div className="cart-panel">
         <div className="cart-header">
-          <div className="cart-title">
-            <span>Giỏ Hàng Quầy</span>
-            <span
-              style={{
-                fontSize: '0.8rem',
-                color: '#38bdf8',
-                fontFamily: 'var(--font-mono)',
-                background: 'rgba(56, 189, 248, 0.1)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-              }}
-            >
-              {currentOrderCode}
-            </span>
-          </div>
-          {cart.length > 0 && (
+          <div className="cart-title">Giỏ Hàng Quầy</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={() => setCart([])}
+              onClick={() => setIsBarcodeStickerModalOpen(true)}
               style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#f87171',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--primary)',
+                fontSize: '0.75rem',
+                padding: '4px 8px',
+                borderRadius: '4px',
                 cursor: 'pointer',
               }}
+              title="In mã vạch dán quầy: THANHTOAN và XOA"
             >
-              <Trash2 size={14} /> Xóa hết
+              <Barcode size={13} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+              2 Mã Tiện Ích
             </button>
-          )}
+
+            {cart.length > 0 && (
+              <button
+                onClick={clearCart}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#f87171',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Trash2 size={14} /> Xóa
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Danh sách món trong giỏ */}
@@ -414,20 +391,20 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100%',
-                color: '#64748b',
-                gap: '8px',
+                color: 'var(--text-muted)',
+                gap: '6px',
               }}
             >
-              <Barcode size={42} strokeWidth={1.5} />
-              <p style={{ fontSize: '0.9rem' }}>Chưa có món nào trong giỏ</p>
-              <p style={{ fontSize: '0.8rem', textAlign: 'center' }}>
-                Quét mã barcode hoặc nhấn chọn sản phẩm ở bảng bên trái
+              <Barcode size={38} strokeWidth={1.5} />
+              <p style={{ fontSize: '0.88rem' }}>Giỏ hàng đang trống</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Bóp cò súng quét mã vạch sản phẩm
               </p>
             </div>
           ) : (
             cart.map((item) => (
               <div key={item.product.id} className="cart-item">
-                <div className="cart-item-info">
+                <div style={{ flex: 1 }}>
                   <div className="cart-item-name">{item.product.name}</div>
                   <div className="cart-item-price">
                     {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
@@ -436,11 +413,11 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
                 <div className="cart-item-qty">
                   <button className="qty-btn" onClick={() => updateQuantity(item.product.id, -1)}>
-                    <Minus size={13} />
+                    <Minus size={12} />
                   </button>
                   <span className="qty-val">{item.quantity}</span>
                   <button className="qty-btn" onClick={() => updateQuantity(item.product.id, 1)}>
-                    <Plus size={13} />
+                    <Plus size={12} />
                   </button>
                 </div>
 
@@ -453,20 +430,19 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#64748b',
-                    marginLeft: '8px',
+                    color: 'var(--text-muted)',
+                    marginLeft: '6px',
                     cursor: 'pointer',
                   }}
-                  title="Xóa món"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                 </button>
               </div>
             ))
           )}
         </div>
 
-        {/* Tổng thanh toán & Chiết khấu */}
+        {/* Tổng tiền & Nút Tiền Mặt duy nhất */}
         <div className="cart-summary">
           <div className="summary-row">
             <span>Tiền hàng ({cart.reduce((s, i) => s + i.quantity, 0)} món):</span>
@@ -476,7 +452,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           </div>
 
           <div className="summary-row" style={{ alignItems: 'center' }}>
-            <span>Giảm giá / Voucher:</span>
+            <span>Giảm giá:</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <input
                 type="number"
@@ -484,14 +460,15 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                 placeholder="0"
                 onChange={(e) => setDiscountAmount(Number(e.target.value) || 0)}
                 style={{
-                  width: '90px',
+                  width: '80px',
                   background: 'rgba(255, 255, 255, 0.06)',
                   border: '1px solid var(--border-color)',
                   color: '#fff',
                   borderRadius: '4px',
-                  padding: '2px 6px',
+                  padding: '2px 5px',
                   textAlign: 'right',
                   fontFamily: 'var(--font-mono)',
+                  fontSize: '0.85rem',
                 }}
               />
               <span>đ</span>
@@ -499,128 +476,80 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           </div>
 
           <div className="summary-row total">
-            <span>KHÁCH PHẢI TRẢ:</span>
+            <span>TỔNG TIỀN:</span>
             <span className="total-price">
               {new Intl.NumberFormat('vi-VN').format(finalAmount)}đ
             </span>
           </div>
 
-          {/* Nút hành động thanh toán */}
+          {/* CHỈ CÒN DUY NHẤT NÚT TIỀN MẶT THEO YÊU CẦU */}
           <div className="checkout-actions">
-            {/* Nút thanh toán Tiền Mặt theo yêu cầu đặc biệt */}
             <button
               className="btn btn-cash"
               onClick={handleCashPayment}
               disabled={cart.length === 0}
-              title="Khách trả tiền mặt: In bill và xóa giỏ đón khách tiếp theo"
+              title="Khách trả tiền mặt: In bill và xóa giỏ"
             >
               <DollarSign size={20} />
               <span>TIỀN MẶT</span>
             </button>
-
-            {/* Nút thanh toán VietQR Động */}
-            <button
-              className="btn btn-primary"
-              style={{ fontSize: '1.05rem', padding: '14px 20px' }}
-              onClick={handleOpenVietQR}
-              disabled={cart.length === 0}
-              title="Mở mã QR động cho khách quét thanh toán chuyển khoản"
-            >
-              <QrCode size={20} />
-              <span>VIETQR ĐỘNG</span>
-            </button>
           </div>
 
-          {/* In thử hóa đơn nhiệt */}
-          <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-            <button
-              className="btn btn-secondary"
-              style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }}
-              disabled={cart.length === 0}
-              onClick={() => {
-                const sampleOrder: PosOrder = {
-                  id: 'preview',
-                  orderCode: currentOrderCode,
-                  cashierName: 'Thu Ngân 1',
-                  items: cart,
-                  totalAmount,
-                  discountAmount,
-                  finalAmount,
-                  paymentMethod: 'CASH',
-                  paymentStatus: 'PAID',
-                  transferContent: currentOrderCode,
-                  createdAt: new Date().toISOString(),
-                };
-                printService.printThermalReceipt(sampleOrder, settings);
-              }}
-            >
-              <Printer size={14} /> In phiếu tạm tính (K80)
-            </button>
+          <div style={{ marginTop: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            💡 Khách quét mã VietQR tự động trên màn hình ngoài. Quét mã <b>THANHTOAN</b> để hoàn tất.
           </div>
         </div>
       </div>
 
-      {/* MODAL VIETQR ĐỘNG & ĐỐI SOÁT TỰ ĐỘNG */}
-      {isQrModalOpen && (
+      {/* MODAL IN 2 MÃ VẠCH TIỆN ÍCH DÁN QUẦY */}
+      {isBarcodeStickerModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                <QrCode size={20} color="#38bdf8" />
-                <span>Thanh Toán Chuyển Khoản VietQR Động</span>
+          <div className="modal-content" style={{ textAlign: 'center', maxWidth: '420px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>2 Mã Vạch Tiện Ích Dán Quầy</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Dán 2 mã vạch này tại quầy thu ngân hoặc cạnh màn hình phụ để khách/thu ngân quét bóp cò nhanh:
+            </p>
+
+            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#059669', marginBottom: '4px' }}>
+                1. MÃ XÁC NHẬN THANH TOÁN
               </div>
-              <button
-                onClick={() => setIsQrModalOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
+              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
+                |||| | ||||| ||| |||
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem' }}>
+                THANHTOAN
+              </div>
             </div>
 
-            {isPaidSuccess ? (
-              <div style={{ padding: '24px 0' }}>
-                <CheckCircle size={68} color="#10b981" style={{ margin: '0 auto 16px' }} />
-                <h2 style={{ color: '#10b981', marginBottom: '8px' }}>ĐÃ NHẬN TIỀN THÀNH CÔNG!</h2>
-                <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
-                  Hệ thống đã nhận {new Intl.NumberFormat('vi-VN').format(finalAmount)}đ từ tài khoản ngân hàng.
-                </p>
-                <div style={{ marginTop: '16px', color: '#38bdf8', fontSize: '0.88rem' }}>
-                  Loa Bluetooth đã phát thông báo giọng nói.
-                </div>
-                {countdown !== null && (
-                  <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#64748b' }}>
-                    Tự động xóa giỏ hàng sau: <b>{countdown}s</b>
-                  </div>
-                )}
+            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#dc2626', marginBottom: '4px' }}>
+                2. MÃ HỦY / XÓA GIỎ HÀNG
               </div>
-            ) : (
-              <div>
-                <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '8px' }}>
-                  Màn hình phụ hướng ra khách hàng cũng đang hiển thị mã QR này đồng bộ!
-                </p>
-
-                {/* Khung hiển thị ảnh VietQR */}
-                <div className="vietqr-image-box" style={{ margin: '8px auto' }}>
-                  <img src={dynamicQrUrl} alt="VietQR Động Napas 247" />
-                </div>
-
-                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '8px', margin: '12px 0', fontSize: '0.88rem' }}>
-                  <div>Số tiền: <b style={{ color: '#10b981', fontSize: '1.1rem' }}>{new Intl.NumberFormat('vi-VN').format(finalAmount)}đ</b></div>
-                  <div>Nội dung CK: <b style={{ color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>{currentOrderCode}</b></div>
-                  <div>Ngân hàng: <b>{settings.bankConfig.bankId} - {settings.bankConfig.accountNo}</b> ({settings.bankConfig.accountName})</div>
-                </div>
-
-                {/* Nút giả lập nhận tiền webhook ngân hàng */}
-                <button
-                  className="btn btn-success"
-                  style={{ width: '100%', marginTop: '8px' }}
-                  onClick={handleConfirmTransferSuccess}
-                >
-                  <Sparkles size={18} />
-                  <span>Xác nhận Tiền Đã Vào Tài Khoản (Loa đọc & Xóa Giỏ)</span>
-                </button>
+              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
+                ||| |||| | ||| ||||
               </div>
-            )}
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem' }}>
+                XOA
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => window.print()}
+            >
+              <Printer size={16} />
+              <span>In Ngay Tem Dán Này</span>
+            </button>
+
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: '8px' }}
+              onClick={() => setIsBarcodeStickerModalOpen(false)}
+            >
+              Đóng
+            </button>
           </div>
         </div>
       )}
