@@ -1905,3 +1905,13 @@ select option {
   70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(118, 254, 40, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(118, 254, 40, 0); }
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+

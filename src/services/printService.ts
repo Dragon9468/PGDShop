@@ -318,7 +318,7 @@ class PrintService {
           <!-- TEM 1: THANHTOAN -->
           <div class="sticker-card">
             <div class="sticker-header" style="color: #059669;">1. MÃ LỆNH THANH TOÁN (THANHTOAN)</div>
-            <div class="sticker-sub">Lần 1: Sinh VietQR đúng số tiền • Lần 2: Xác nhận hoàn tất đơn</div>
+            <div class="sticker-sub">Chốt đơn sinh mã VietQR động • Nhận tiền tự động qua Webhook</div>
             
             <div class="barcode-bars">
               <div class="bar b-thick"></div><div class="sp-1"></div>

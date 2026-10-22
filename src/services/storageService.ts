@@ -594,6 +594,10 @@ class StorageService {
     this.initSupabaseFromSettings();
   }
 
+  public getSupabaseClient(): SupabaseClient | null {
+    return this.supabase;
+  }
+
   private initSupabaseFromSettings() {
     const settings = this.getSettings();
     if (settings.supabaseUrl && settings.supabaseAnonKey) {

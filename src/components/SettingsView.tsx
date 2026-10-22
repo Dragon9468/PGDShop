@@ -329,7 +329,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           </div>
 
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
-            Hệ thống đã thiết lập cố định 2 mã barcode lệnh: <b>THANHTOAN</b> (Sinh VietQR nạp đúng số tiền & xác nhận đơn) và <b>XOA</b> (Hoàn tác 1 số lượng món vừa bóp cò nhầm). Bạn có thể gắn máy in barcode decal (khổ 50x30mm) hoặc máy in bill nhiệt K80 để in dán quầy, hoặc cho phép khách chạm/click dạng button trên màn hình:
+            Hệ thống đã thiết lập cố định 2 mã barcode lệnh: <b>THANHTOAN</b> (Chốt đơn sinh mã VietQR động đúng số tiền, nhận tiền tự động qua Webhook) và <b>XOA</b> (Hoàn tác 1 số lượng món vừa bóp cò nhầm). Bạn có thể gắn máy in barcode decal (khổ 50x30mm) hoặc máy in bill nhiệt K80 để in dán quầy:
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
@@ -337,12 +337,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
             <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '12px', border: '2.5px solid #059669', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.15)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#059669' }}>
-                  1. MÃ LỆNH THANH TOÁN (THANHTOAN)
+                  1. MÃ LỆNH CHỐT ĐƠN (THANHTOAN)
                 </span>
                 <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>CỐ ĐỊNH</span>
               </div>
               <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
-                Lần 1: Chốt đơn và sinh mã VietQR động nạp sẵn đúng số tiền • Lần 2: Xác nhận hoàn tất đơn khi tiền về.
+                Quét để chốt đơn và sinh mã VietQR động đúng số tiền. Tiền về tài khoản app tự động bắt Webhook nhận diện và in bill.
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '2.2rem', letterSpacing: '4px', fontWeight: 900, textAlign: 'center', color: '#000' }}>
                 |||| | ||||| ||| |||

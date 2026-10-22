@@ -12,17 +12,15 @@ import {
   Plus,
   Minus,
   DollarSign,
-  Printer,
-  Sparkles,
   X,
-  CreditCard,
-  QrCode,
-  Check,
+  Loader2,
 } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { dualScreenSync, CheckoutStatus } from '../services/dualScreenSync';
 import { printService } from '../services/printService';
 import { storageService } from '../services/storageService';
+import { vietqrService } from '../services/vietqrService';
+import { paymentWebhookService, WebhookBankTransaction } from '../services/paymentWebhookService';
 import confetti from 'canvas-confetti';
 
 interface PosViewProps {
@@ -35,13 +33,13 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('TatCa');
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [isBarcodeStickerModalOpen, setIsBarcodeStickerModalOpen] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>('SCANNING');
+  const [activeOrderCode, setActiveOrderCode] = useState<string>('');
   const [lastScannedProductId, setLastScannedProductId] = useState<string | null>(null);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Khởi tạo
+  // Khởi tạo và đồng bộ
   useEffect(() => {
     setProducts(storageService.getProducts());
 
@@ -50,15 +48,18 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       if (msg.type === 'CUSTOMER_SCANNED_BARCODE' && msg.payload?.barcode) {
         handleScanBarcode(msg.payload.barcode);
       } else if (msg.type === 'CLEAR_CART') {
-        setCart([]);
-        setDiscountAmount(0);
-        setCheckoutStatus('SCANNING');
+        clearCart();
       } else if (msg.type === 'SET_CHECKOUT_STATUS' && msg.payload?.checkoutStatus) {
         setCheckoutStatus(msg.payload.checkoutStatus);
+      } else if (msg.type === 'PAYMENT_COMPLETED') {
+        setCheckoutStatus('COMPLETED');
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      paymentWebhookService.stopMonitoring();
+    };
   }, [products]);
 
   // Tính tổng tiền
@@ -72,17 +73,17 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       totalAmount,
       discountAmount,
       finalAmount,
-      '',
+      activeOrderCode,
       checkoutStatus
     );
-  }, [cart, totalAmount, discountAmount, finalAmount, checkoutStatus]);
+  }, [cart, totalAmount, discountAmount, finalAmount, activeOrderCode, checkoutStatus]);
 
   // Xử lý quét barcode từ súng quét USB
   const handleScanBarcode = (barcode: string) => {
     const cleanCode = barcode.trim().toUpperCase();
     if (!cleanCode) return;
 
-    // 1. Kiểm tra nếu quét mã tiện ích "THANHTOAN"
+    // 1. Kiểm tra nếu quét mã tiện ích "THANHTOAN" -> Chốt đơn sinh mã VietQR động trên màn hình khách
     if (cleanCode === 'THANHTOAN' || cleanCode === 'CHECKOUT') {
       if (cart.length === 0 || finalAmount <= 0) {
         soundService.speakVietnamese('Giỏ hàng trống. Vui lòng quét món hàng trước.');
@@ -90,18 +91,35 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
         return;
       }
 
-      // Nếu đang quét dở -> Chuyển sang sinh QR động
+      // Nếu đang quét đồ -> Chốt đơn và sinh VietQR động đúng số tiền
       if (checkoutStatus === 'SCANNING') {
+        const orderCode = vietqrService.generateOrderCode();
+        setActiveOrderCode(orderCode);
         setCheckoutStatus('AWAITING_PAYMENT');
-        dualScreenSync.setCheckoutStatus('AWAITING_PAYMENT', finalAmount);
+        dualScreenSync.syncCartToCustomerDisplay(
+          cart,
+          totalAmount,
+          discountAmount,
+          finalAmount,
+          orderCode,
+          'AWAITING_PAYMENT'
+        );
+
+        // Bật Webhook Listener tự động bắt tiền về từ tài khoản ngân hàng
+        paymentWebhookService.startMonitoring(orderCode, finalAmount, (tx) => {
+          handleWebhookPaymentSuccess(tx, orderCode);
+        });
+
         soundService.playSuccessChime();
         soundService.speakVietnamese(
           `Tổng tiền là ${finalAmount.toLocaleString('vi-VN')} đồng. Mời quý khách quét mã VietQR để thanh toán.`
         );
-      } 
-      // Nếu đã sinh QR rồi và quét THANHTOAN lần nữa -> Xác nhận đã nhận tiền
-      else if (checkoutStatus === 'AWAITING_PAYMENT') {
-        handleTransferSuccessAuto();
+      } else {
+        // Đã sinh QR rồi: Tuyệt đối KHÔNG xác nhận tiền thủ công! Báo hệ thống đang chờ webhook tự động
+        soundService.playBarcodeBeep();
+        soundService.speakVietnamese(
+          'Mã VietQR đã sẵn sàng. Hệ thống đang tự động bắt webhook nhận tiền ngân hàng.'
+        );
       }
 
       setSearchQuery('');
@@ -167,9 +185,11 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       return updated;
     });
 
-    // Nếu đang ở màn hình chờ thanh toán, chuyển về scanning để cập nhật lại
+    // Nếu đang ở màn hình chờ thanh toán, hủy giám sát và chuyển về scanning để cập nhật lại
     if (checkoutStatus === 'AWAITING_PAYMENT') {
+      paymentWebhookService.stopMonitoring();
       setCheckoutStatus('SCANNING');
+      setActiveOrderCode('');
     }
   };
 
@@ -177,7 +197,9 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     soundService.playBarcodeBeep();
     setLastScannedProductId(product.id);
     if (checkoutStatus === 'AWAITING_PAYMENT') {
+      paymentWebhookService.stopMonitoring();
       setCheckoutStatus('SCANNING');
+      setActiveOrderCode('');
     }
 
     setCart((prevCart) => {
@@ -228,23 +250,26 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   };
 
   const clearCart = () => {
+    paymentWebhookService.stopMonitoring();
     setCart([]);
     setDiscountAmount(0);
     setCheckoutStatus('SCANNING');
+    setActiveOrderCode('');
     setLastScannedProductId(null);
     dualScreenSync.clearCart();
     barcodeInputRef.current?.focus();
   };
 
   // -------------------------------------------------------------
-  // THANH TOÁN TIỀN MẶT
+  // THANH TOÁN TIỀN MẶT TẠI QUẦY
   // -------------------------------------------------------------
   const handleCashPayment = () => {
     if (cart.length === 0) return;
+    paymentWebhookService.stopMonitoring();
 
     const order: PosOrder = {
       id: 'order-' + Date.now(),
-      orderCode: 'POS' + Date.now().toString().slice(-6),
+      orderCode: activeOrderCode || 'POS' + Date.now().toString().slice(-6),
       cashierName: 'Thu Ngân Quầy',
       items: [...cart],
       totalAmount,
@@ -260,7 +285,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     storageService.savePosOrder(order);
     soundService.announceCashSuccess(finalAmount);
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-    dualScreenSync.notifyPaymentSuccess('CASH', finalAmount, '');
+    dualScreenSync.notifyPaymentSuccess('CASH', finalAmount, order.orderCode);
+    setCheckoutStatus('COMPLETED');
 
     // In hóa đơn nhiệt
     printService.printThermalReceipt(order, settings);
@@ -272,32 +298,36 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   };
 
   // -------------------------------------------------------------
-  // XỬ LÝ KHI KHÁCH / THU NGÂN QUÉT MÃ THANH TOÁN HOẶC CHUYỂN KHOẢN XONG
+  // TỰ ĐỘNG NHẬN TIỀN QUA WEBHOOK NGÂN HÀNG (VIETQR ĐỘNG)
   // -------------------------------------------------------------
-  const handleTransferSuccessAuto = () => {
+  const handleWebhookPaymentSuccess = (tx: WebhookBankTransaction, orderCode: string) => {
     if (cart.length === 0) return;
 
     const order: PosOrder = {
       id: 'order-' + Date.now(),
-      orderCode: 'POS' + Date.now().toString().slice(-6),
-      cashierName: 'Tự Phục Vụ / Quầy',
+      orderCode: orderCode || 'POS' + Date.now().toString().slice(-6),
+      cashierName: 'VietQR Webhook Tự Động',
       items: [...cart],
       totalAmount,
       discountAmount,
       finalAmount,
       paymentMethod: 'VIETQR',
       paymentStatus: 'PAID',
-      transferContent: '',
+      transferContent: tx.content || orderCode,
       createdAt: new Date().toISOString(),
-      paidAt: new Date().toISOString(),
+      paidAt: tx.transactionDate || new Date().toISOString(),
     };
 
     storageService.savePosOrder(order);
     soundService.announceTransferSuccess(finalAmount);
     confetti({ particleCount: 110, spread: 80, origin: { y: 0.5 } });
-    dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, '');
+    dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, order.orderCode);
+    setCheckoutStatus('COMPLETED');
 
-    // Tự động clear sau 3s
+    // In hóa đơn nhiệt tự động
+    printService.printThermalReceipt(order, settings);
+
+    // Tự động clear giỏ hàng đón khách tiếp theo sau khoảng delay cài đặt
     setTimeout(() => {
       clearCart();
     }, (settings.autoClearDelaySeconds || 3) * 1000);
@@ -336,82 +366,17 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
             >
               <X size={18} />
             </button>
           )}
           <span className="barcode-badge">Súng Sẵn Sàng</span>
-        </div>
-
-        {/* 2 Nút Lệnh Barcode Cố Định (Thao tác Chuột hoặc Màn Cảm Ứng Touch) */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => handleScanBarcode('THANHTOAN')}
-            style={{
-              flex: 1,
-              minWidth: '150px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              background: checkoutStatus === 'AWAITING_PAYMENT' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(118, 254, 40, 0.15)',
-              border: '1.5px solid var(--primary)',
-              color: 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            title="Nhấp chuột hoặc chạm cảm ứng để Thanh Toán (tương đương súng quét mã THANHTOAN)"
-          >
-            <CreditCard size={16} color="var(--primary)" />
-            <span>*THANHTOAN* {checkoutStatus === 'AWAITING_PAYMENT' ? '(ĐÃ NHẬN TIỀN)' : '(SINH QR)'}</span>
-          </button>
-
-          <button
-            onClick={() => handleScanBarcode('XOA')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1.5px solid #ef4444',
-              color: '#f87171',
-              fontSize: '0.82rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            title="Nhấp chuột hoặc chạm cảm ứng để Hoàn Tác 1 món (tương đương súng quét mã XOA)"
-          >
-            <Minus size={16} />
-            <span>*XOA* (LÙI 1 MÓN)</span>
-          </button>
-
-          <button
-            onClick={() => printService.printBarcodeStickers(settings.storeName)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-            }}
-            title="In 2 tem mã vạch cố định THANHTOAN và XOA ra máy in barcode hoặc máy in bill"
-          >
-            <Printer size={15} />
-            <span>In 2 Tem Quầy</span>
-          </button>
         </div>
 
         {/* Danh mục */}
@@ -444,53 +409,83 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
             className={`cat-pill ${selectedCategory === 'VanPhongPham' ? 'active' : ''}`}
             onClick={() => setSelectedCategory('VanPhongPham')}
           >
-            🧾 Vật Tư ({products.filter((p) => p.category === 'VanPhongPham').length})
+            📋 Văn Phòng Phẩm ({products.filter((p) => p.category === 'VanPhongPham').length})
           </button>
         </div>
 
-        {/* Lưới sản phẩm trực quan kèm ảnh */}
-        <div className="products-grid">
+        {/* Lưới sản phẩm */}
+        <div className="product-grid">
           {filteredProducts.map((p) => (
             <div
               key={p.id}
               className="product-card"
               onClick={() => addToCart(p)}
-              title={`Mã: ${p.barcode}`}
+              title={`Click để thêm ${p.name}`}
             >
-              <div className="product-card-img-wrap">
-                {p.imageUrl ? (
+              {p.imageUrl && (
+                <div style={{ position: 'relative', width: '100%', height: '90px', overflow: 'hidden' }}>
                   <img
                     src={p.imageUrl}
                     alt={p.name}
-                    className="product-card-img"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      transition: 'transform 0.25s ease',
+                    }}
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
                     }}
                   />
-                ) : (
-                  <div style={{ fontSize: '2rem' }}>
-                    {p.isPrepared ? '☕' : p.category === 'TapHoa' ? '🛒' : p.category === 'BaoBi' ? '📦' : '🧾'}
-                  </div>
-                )}
-                {p.isPrepared ? (
-                  <span className="product-tag fb">☕ Pha Chế</span>
-                ) : p.shelfCode ? (
-                  <span className="product-tag shelf">📍 {p.shelfCode}</span>
-                ) : null}
-              </div>
-
-              <div className="product-name" title={p.name}>{p.name}</div>
-
-              <div>
-                <div className="product-price">
-                  {new Intl.NumberFormat('vi-VN').format(p.retailPrice)}đ
-                </div>
-                <div className="product-stock">
-                  {p.isPrepared ? (
-                    <span style={{ color: 'var(--primary)' }}>Sẵn sàng</span>
-                  ) : (
-                    <span>Tồn: {p.stockQuantity} {p.unit}</span>
+                  {p.shelfCode && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(4px)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                      }}
+                    >
+                      📍 {p.shelfCode}
+                    </div>
                   )}
+                  {p.isPrepared && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        left: '4px',
+                        background: 'rgba(245, 158, 11, 0.85)',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        color: '#000',
+                      }}
+                    >
+                      ☕ Pha Chế
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                <div className="product-name">{p.name}</div>
+                <div style={{ marginTop: '4px' }}>
+                  <div className="product-price">
+                    {new Intl.NumberFormat('vi-VN').format(p.retailPrice)}đ
+                  </div>
+                  <div className="product-stock" style={{ marginTop: '2px' }}>
+                    {p.isPrepared ? 'Sẵn sàng' : `Tồn: ${p.stockQuantity} ${p.unit}`}
+                  </div>
                 </div>
               </div>
             </div>
@@ -502,42 +497,23 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       <div className="cart-panel">
         <div className="cart-header">
           <div className="cart-title">Giỏ Hàng Quầy</div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          {cart.length > 0 && (
             <button
-              onClick={() => setIsBarcodeStickerModalOpen(true)}
+              onClick={clearCart}
               style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--primary)',
-                fontSize: '0.75rem',
-                padding: '4px 8px',
-                borderRadius: '4px',
+                background: 'transparent',
+                border: 'none',
+                color: '#f87171',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
                 cursor: 'pointer',
               }}
-              title="In mã vạch dán quầy: THANHTOAN và XOA"
             >
-              <Barcode size={13} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-              2 Mã Tiện Ích
+              <Trash2 size={14} /> Xóa
             </button>
-
-            {cart.length > 0 && (
-              <button
-                onClick={clearCart}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#f87171',
-                  fontSize: '0.8rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                <Trash2 size={14} /> Xóa
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Danh sách món trong giỏ */}
@@ -551,14 +527,11 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                 justifyContent: 'center',
                 height: '100%',
                 color: 'var(--text-muted)',
-                gap: '6px',
+                gap: '8px',
               }}
             >
               <Barcode size={38} strokeWidth={1.5} />
               <p style={{ fontSize: '0.88rem' }}>Giỏ hàng đang trống</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Bóp cò súng quét mã vạch sản phẩm
-              </p>
             </div>
           ) : (
             cart.map((item) => (
@@ -663,66 +636,42 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
           {/* NÚT THANH TOÁN THU NGÂN */}
           <div className="checkout-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {checkoutStatus === 'SCANNING' ? (
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  if (cart.length === 0 || finalAmount <= 0) return;
-                  setCheckoutStatus('AWAITING_PAYMENT');
-                  dualScreenSync.setCheckoutStatus('AWAITING_PAYMENT', finalAmount);
-                  soundService.playSuccessChime();
-                  soundService.speakVietnamese(
-                    `Tổng tiền là ${finalAmount.toLocaleString('vi-VN')} đồng. Mời quý khách quét mã VietQR để thanh toán.`
-                  );
-                }}
-                disabled={cart.length === 0}
+            {checkoutStatus === 'AWAITING_PAYMENT' && (
+              <div
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontWeight: 800,
-                  fontSize: '0.92rem',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
+                  justifyContent: 'space-between',
+                  fontSize: '0.82rem',
                 }}
-                title="Khách quét xong đồ -> Bấm để sinh mã VietQR động đúng số tiền"
               >
-                <QrCode size={18} />
-                <span>SINH VIETQR ĐỘNG (THANHTOAN)</span>
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8' }}>
+                  <Loader2 size={15} className="spin" />
+                  <span>Đang chờ chuyển VietQR (Webhook tự động)...</span>
+                </div>
                 <button
-                  className="btn btn-primary"
-                  onClick={handleTransferSuccessAuto}
-                  disabled={cart.length === 0}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    fontWeight: 800,
-                    fontSize: '0.9rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: '0 0 15px var(--primary)',
-                  }}
-                  title="Xác nhận tiền đã vào tài khoản và hoàn tất đơn"
-                >
-                  <Check size={18} />
-                  <span>XÁC NHẬN ĐÃ NHẬN TIỀN</span>
-                </button>
-                <button
-                  className="btn btn-secondary"
                   onClick={() => {
+                    paymentWebhookService.stopMonitoring();
                     setCheckoutStatus('SCANNING');
+                    setActiveOrderCode('');
                     dualScreenSync.setCheckoutStatus('SCANNING', finalAmount);
                   }}
-                  style={{ padding: '0 12px', fontSize: '0.8rem' }}
-                  title="Quay lại thêm/sửa món"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-muted)',
+                    borderRadius: '4px',
+                    padding: '2px 8px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                  }}
+                  title="Hủy chờ thanh toán để quét thêm món"
                 >
-                  Quét thêm
+                  Quay lại
                 </button>
               </div>
             )}
@@ -737,111 +686,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               <span>TIỀN MẶT</span>
             </button>
           </div>
-
-          <div style={{ marginTop: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-            {checkoutStatus === 'SCANNING' ? (
-              <>💡 Quét đồ xong → Quét <b>THANHTOAN</b> để sinh QR. Quét <b>XOA</b> để hoàn tác 1 món.</>
-            ) : (
-              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                ⚡ Đang chờ khách quét VietQR trên màn ngoài. Quét lại <b>THANHTOAN</b> khi tiền về!
-              </span>
-            )}
-          </div>
         </div>
       </div>
-
-      {/* MODAL IN 2 MÃ VẠCH TIỆN ÍCH DÁN QUẦY */}
-      {isBarcodeStickerModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center', maxWidth: '420px' }}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>2 Mã Vạch Tiện Ích Dán Quầy</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Dán 2 mã vạch này tại quầy thu ngân hoặc cạnh màn hình phụ để khách/thu ngân quét bóp cò nhanh:
-            </p>
-
-            <div
-              onClick={() => {
-                handleScanBarcode('THANHTOAN');
-                setIsBarcodeStickerModalOpen(false);
-              }}
-              style={{
-                background: '#fff',
-                color: '#000',
-                padding: '16px',
-                borderRadius: '10px',
-                marginBottom: '12px',
-                cursor: 'pointer',
-                border: '2.5px solid #059669',
-                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
-                transition: 'transform 0.15s ease',
-              }}
-              title="Nhấp chuột hoặc chạm cảm ứng để thực thi lệnh THANHTOAN"
-            >
-              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#059669', marginBottom: '4px' }}>
-                1. MÃ THANH TOÁN (THANHTOAN) - NHẤP ĐỂ CHẠY
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
-                Lần 1: Sinh mã VietQR đúng số tiền • Lần 2: Xác nhận hoàn tất đơn
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 900 }}>
-                |||| | ||||| ||| |||
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem' }}>
-                *THANHTOAN*
-              </div>
-            </div>
-
-            <div
-              onClick={() => {
-                handleScanBarcode('XOA');
-                setIsBarcodeStickerModalOpen(false);
-              }}
-              style={{
-                background: '#fff',
-                color: '#000',
-                padding: '16px',
-                borderRadius: '10px',
-                marginBottom: '16px',
-                cursor: 'pointer',
-                border: '2.5px solid #dc2626',
-                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
-                transition: 'transform 0.15s ease',
-              }}
-              title="Nhấp chuột hoặc chạm cảm ứng để thực thi lệnh XOA (hoàn tác 1 món)"
-            >
-              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#dc2626', marginBottom: '4px' }}>
-                2. MÃ HOÀN TÁC (XOA) - NHẤP ĐỂ CHẠY
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
-                Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần)
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 900 }}>
-                ||| |||| | ||| ||||
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem' }}>
-                *XOA*
-              </div>
-            </div>
-
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%', marginBottom: '8px' }}
-              onClick={() => printService.printBarcodeStickers(settings.storeName)}
-            >
-              <Printer size={16} />
-              <span>In 2 Tem Mã Vạch Này (Khổ 50x30mm / Bill K80)</span>
-            </button>
-
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%' }}
-              onClick={() => setIsBarcodeStickerModalOpen(false)}
-            >
-              Đóng
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

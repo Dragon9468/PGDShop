@@ -14,8 +14,10 @@ import {
   Check,
   CreditCard,
   ScanLine,
+  Loader2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { paymentWebhookService } from '../services/paymentWebhookService';
 
 interface CustomerDisplayViewProps {
   settings: AppSettings;
@@ -26,6 +28,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   const [totalAmount, setTotalAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
+  const [orderCode, setOrderCode] = useState<string>('');
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>('SCANNING');
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
 
@@ -82,6 +85,9 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         setTotalAmount(msg.payload.totalAmount || 0);
         setDiscountAmount(msg.payload.discountAmount || 0);
         setFinalAmount(msg.payload.finalAmount || 0);
+        if (msg.payload.orderCode) {
+          setOrderCode(msg.payload.orderCode);
+        }
         if (msg.payload.checkoutStatus) {
           setCheckoutStatus(msg.payload.checkoutStatus);
         }
@@ -108,6 +114,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         setCart([]);
         setTotalAmount(0);
         setFinalAmount(0);
+        setOrderCode('');
         setCheckoutStatus('SCANNING');
         setCountdown(null);
       }
@@ -115,6 +122,22 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
 
     return () => unsubscribe();
   }, [finalAmount]);
+
+  // Lắng nghe Webhook trực tiếp khi CFD chạy độc lập trên màn hình khách
+  useEffect(() => {
+    if (checkoutStatus === 'AWAITING_PAYMENT' && orderCode && finalAmount > 0) {
+      paymentWebhookService.startMonitoring(orderCode, finalAmount, (tx) => {
+        soundService.announceTransferSuccess(tx.amount || finalAmount);
+        dualScreenSync.notifyPaymentSuccess('VIETQR', tx.amount || finalAmount, orderCode);
+        triggerSuccessScreen('VIETQR', tx.amount || finalAmount);
+      });
+    }
+    return () => {
+      if (checkoutStatus !== 'AWAITING_PAYMENT') {
+        paymentWebhookService.stopMonitoring();
+      }
+    };
+  }, [checkoutStatus, orderCode, finalAmount]);
 
   // Kích hoạt thanh toán thành công
   const triggerSuccessScreen = (method: 'CASH' | 'VIETQR', amount: number) => {
@@ -136,13 +159,14 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         setCart([]);
         setTotalAmount(0);
         setFinalAmount(0);
+        setOrderCode('');
         setCheckoutStatus('SCANNING');
         setCountdown(null);
       }
     }, 1000);
   };
 
-  // Hành động khi quét barcode "THANHTOAN"
+  // Hành động khi quét barcode "THANHTOAN" -> Chốt đơn và sinh VietQR động
   const handleTriggerPaymentBarcode = () => {
     if (cart.length === 0 || finalAmount <= 0) {
       soundService.speakVietnamese('Giỏ hàng trống. Vui lòng quét món hàng trước.');
@@ -151,18 +175,21 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
 
     // Lần 1: Sinh mã VietQR động
     if (checkoutStatus === 'SCANNING') {
+      const code = orderCode || vietqrService.generateOrderCode();
+      setOrderCode(code);
       setCheckoutStatus('AWAITING_PAYMENT');
-      dualScreenSync.setCheckoutStatus('AWAITING_PAYMENT', finalAmount);
+      dualScreenSync.syncCartToCustomerDisplay(cart, totalAmount, discountAmount, finalAmount, code, 'AWAITING_PAYMENT');
       soundService.playSuccessChime();
       soundService.speakVietnamese(
         `Tổng tiền là ${finalAmount.toLocaleString('vi-VN')} đồng. Mời quý khách quét mã VietQR để thanh toán.`
       );
     } 
-    // Lần 2: Quét THANHTOAN khi đang ở màn hình QR -> Xác nhận hoàn tất thanh toán
+    // Khi đang ở màn hình QR: Tuyệt đối KHÔNG xác nhận tiền thủ công! App tự bắt webhook
     else if (checkoutStatus === 'AWAITING_PAYMENT') {
-      soundService.announceTransferSuccess(finalAmount);
-      dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, '');
-      triggerSuccessScreen('VIETQR', finalAmount);
+      soundService.playBarcodeBeep();
+      soundService.speakVietnamese(
+        'Mã VietQR đã sẵn sàng. Hệ thống đang tự động bắt webhook nhận tiền ngân hàng.'
+      );
     }
   };
 
@@ -224,11 +251,11 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
     );
   };
 
-  // Tự động sinh mã VietQR động theo đúng tổng tiền
+  // Tự động sinh mã VietQR động theo đúng tổng tiền và mã đơn dynamic
   const dynamicQrUrl = vietqrService.generateDynamicQRUrl(
     settings.bankConfig,
     finalAmount,
-    'PGDSHOP'
+    orderCode || 'PGDSHOP'
   );
 
   return (
@@ -459,11 +486,11 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
-                title={checkoutStatus === 'SCANNING' ? 'Quét mã vạch hoặc Chạm/Click để Sinh mã VietQR chuyển khoản' : 'Quét mã vạch hoặc Chạm/Click để Xác nhận đã chuyển tiền'}
+                title={checkoutStatus === 'SCANNING' ? 'Quét mã vạch hoặc Chạm để Chốt đơn sinh mã VietQR' : 'Mã VietQR đã sinh - Hệ thống tự động bắt webhook nhận tiền'}
               >
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 800 }}>
-                    {checkoutStatus === 'AWAITING_PAYMENT' ? 'XÁC NHẬN ĐÃ CHUYỂN:' : 'QUÉT / CHẠM THANH TOÁN:'}
+                    {checkoutStatus === 'AWAITING_PAYMENT' ? 'MÃ QR ĐÃ SINH (CHỜ WEBHOOK):' : 'CHỐT ĐƠN SINH VIETQR:'}
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
                     *THANHTOAN*
@@ -473,7 +500,11 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   </div>
                 </div>
                 <div style={{ background: 'var(--accent)', padding: '8px', borderRadius: '8px' }}>
-                  <Check size={20} color="var(--primary)" />
+                  {checkoutStatus === 'AWAITING_PAYMENT' ? (
+                    <QrCode size={20} color="var(--primary)" />
+                  ) : (
+                    <Check size={20} color="var(--primary)" />
+                  )}
                 </div>
               </button>
 
@@ -645,6 +676,27 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                     <span style={{ color: 'var(--text-muted)' }}>Chủ TK:</span>
                     <b style={{ color: 'var(--text-primary)' }}>{settings.bankConfig.accountName}</b>
                   </div>
+                </div>
+
+                {/* Live Webhook Status Indicator */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginTop: '8px',
+                    padding: '5px 12px',
+                    borderRadius: '16px',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    fontSize: '0.78rem',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                  }}
+                >
+                  <Loader2 size={13} className="spin" />
+                  <span>Webhook Ngân hàng tự động nhận tiền 24/7 (Không cần bấm xác nhận)</span>
                 </div>
 
                 {/* Nút bấm nếu khách muốn quét thêm món */}
