@@ -472,8 +472,24 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
               </div>
             </div>
 
-            {/* 2 Tem / Nút Barcode Lệnh tiện ích dán quầy (Hỗ trợ Touch Screen & Chuột Click) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+          </div>
+
+          {/* CỘT PHẢI: MÃ VIETQR ĐỘNG & 2 MÃ BARCODE LỆNH PHÍA TRÊN */}
+          <div
+            className="cfd-column"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              textAlign: 'center',
+              background: 'var(--bg-card)',
+              padding: '16px',
+              overflowY: 'auto',
+            }}
+          >
+            {/* 2 Tem / Nút Barcode Lệnh tiện ích: THANH TOÁN / CHECKOUT & HOÀN TÁC / UNDO */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginBottom: '12px' }}>
               {/* Nút / Mã Barcode THANH TOÁN */}
               <button
                 type="button"
@@ -485,30 +501,35 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   background: checkoutStatus === 'AWAITING_PAYMENT' ? 'rgba(118, 254, 40, 0.15)' : 'var(--bg-card)',
                   cursor: 'pointer',
                   textAlign: 'left',
+                  padding: '8px 10px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
-                title={checkoutStatus === 'SCANNING' ? 'Quét mã vạch hoặc Chạm để Chốt đơn sinh mã VietQR' : 'Mã VietQR đã sinh - Hệ thống tự động bắt webhook nhận tiền'}
+                title="Quét mã vạch hoặc Chạm để chốt đơn sinh mã VietQR"
               >
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 800 }}>
-                    {checkoutStatus === 'AWAITING_PAYMENT' ? 'MÃ QR ĐÃ SINH (CHỜ WEBHOOK):' : 'CHỐT ĐƠN SINH VIETQR:'}
+                  <div style={{ fontSize: '0.74rem', color: 'var(--primary)', fontWeight: 800 }}>
+                    THANH TOÁN / CHECKOUT
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1rem', color: 'var(--text-primary)', marginTop: '1px' }}>
                     *THANHTOAN*
                   </div>
-                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                     |||| | ||||| |||
                   </div>
                 </div>
-                <div style={{ background: 'var(--accent)', padding: '8px', borderRadius: '8px' }}>
+                <div style={{ background: 'var(--accent)', padding: '6px', borderRadius: '6px' }}>
                   {checkoutStatus === 'AWAITING_PAYMENT' ? (
-                    <QrCode size={20} color="var(--primary)" />
+                    <QrCode size={18} color="var(--primary)" />
                   ) : (
-                    <Check size={20} color="var(--primary)" />
+                    <CreditCard size={18} color="var(--primary)" />
                   )}
                 </div>
               </button>
 
-              {/* Nút / Mã Barcode HOÀN TÁC / GIẢM 1 */}
+              {/* Nút / Mã Barcode HOÀN TÁC */}
               <button
                 type="button"
                 className="cfd-barcode-sticker"
@@ -519,37 +540,33 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   background: 'var(--bg-card)',
                   cursor: 'pointer',
                   textAlign: 'left',
+                  padding: '8px 10px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
-                title="Quét mã vạch hoặc Chạm/Click để Hoàn tác 1 số lượng món vừa quét (ví dụ lỡ scan 2 lần)"
+                title="Quét mã vạch hoặc Chạm để hoàn tác 1 món vừa quét"
               >
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 800 }}>
-                    HOÀN TÁC / GIẢM 1 MÓN:
+                  <div style={{ fontSize: '0.74rem', color: '#f87171', fontWeight: 800 }}>
+                    HOÀN TÁC / UNDO
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1rem', color: 'var(--text-primary)', marginTop: '1px' }}>
                     *XOA*
                   </div>
-                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                     ||| |||| | |||
                   </div>
                 </div>
-                <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '8px', borderRadius: '8px' }}>
-                  <RotateCcw size={20} color="#f87171" />
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '6px', borderRadius: '6px' }}>
+                  <RotateCcw size={18} color="#f87171" />
                 </div>
               </button>
             </div>
-          </div>
 
-          {/* CỘT PHẢI: MÃ VIETQR ĐỘNG HOẶC HƯỚNG DẪN QUÉT ĐỒ */}
-          <div
-            className="cfd-column"
-            style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-            }}
-          >
+            {/* KHÔNG GIAN DƯỚI: MÃ VIETQR HOẶC TRẠNG THÁI QUÉT */}
+            <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             {cart.length === 0 ? (
               // 1. Khi giỏ hàng đang trống
               <div style={{ padding: '24px', color: 'var(--text-muted)' }}>
@@ -717,8 +734,9 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                 >
                   ↩️ Quét thêm món khác vào giỏ
                 </button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

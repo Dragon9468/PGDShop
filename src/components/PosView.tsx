@@ -28,7 +28,7 @@ interface PosViewProps {
 }
 
 export const PosView: React.FC<PosViewProps> = ({ settings }) => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => storageService.getProducts());
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('TatCa');
@@ -39,10 +39,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Khởi tạo và đồng bộ
+  // Khởi tạo và lắng nghe đồng bộ từ màn hình khách
   useEffect(() => {
-    setProducts(storageService.getProducts());
-
     // Lắng nghe khi khách tự quét sản phẩm trên màn hình phụ (CFD)
     const unsubscribe = dualScreenSync.subscribe((msg) => {
       if (msg.type === 'CUSTOMER_SCANNED_BARCODE' && msg.payload?.barcode) {
@@ -60,7 +58,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       unsubscribe();
       paymentWebhookService.stopMonitoring();
     };
-  }, [products]);
+  }, []);
 
   // Tính tổng tiền
   const totalAmount = cart.reduce((sum, item) => sum + item.subtotal, 0);
@@ -414,7 +412,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
         </div>
 
         {/* Lưới sản phẩm */}
-        <div className="product-grid">
+        <div className="products-grid">
           {filteredProducts.map((p) => (
             <div
               key={p.id}

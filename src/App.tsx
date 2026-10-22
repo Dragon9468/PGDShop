@@ -64,7 +64,7 @@ export const App: React.FC = () => {
         onToggleAudio={handleToggleAudio}
       />
 
-      <main style={{ flex: 1, minHeight: 0, overflow: activeTab === 'pos' ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column' }}>
+      <main style={{ flex: 1, minHeight: 0, overflow: (activeTab === 'pos' || activeTab === 'customer_display') ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'pos' && <PosView settings={settings} />}
         {activeTab === 'customer_display' && <CustomerDisplayView settings={settings} />}
         {activeTab === 'shelves' && <ShelfManagementView />}
