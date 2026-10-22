@@ -344,6 +344,76 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           <span className="barcode-badge">Súng Sẵn Sàng</span>
         </div>
 
+        {/* 2 Nút Lệnh Barcode Cố Định (Thao tác Chuột hoặc Màn Cảm Ứng Touch) */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => handleScanBarcode('THANHTOAN')}
+            style={{
+              flex: 1,
+              minWidth: '150px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: checkoutStatus === 'AWAITING_PAYMENT' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(118, 254, 40, 0.15)',
+              border: '1.5px solid var(--primary)',
+              color: 'var(--text-primary)',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Nhấp chuột hoặc chạm cảm ứng để Thanh Toán (tương đương súng quét mã THANHTOAN)"
+          >
+            <CreditCard size={16} color="var(--primary)" />
+            <span>*THANHTOAN* {checkoutStatus === 'AWAITING_PAYMENT' ? '(ĐÃ NHẬN TIỀN)' : '(SINH QR)'}</span>
+          </button>
+
+          <button
+            onClick={() => handleScanBarcode('XOA')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1.5px solid #ef4444',
+              color: '#f87171',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Nhấp chuột hoặc chạm cảm ứng để Hoàn Tác 1 món (tương đương súng quét mã XOA)"
+          >
+            <Minus size={16} />
+            <span>*XOA* (LÙI 1 MÓN)</span>
+          </button>
+
+          <button
+            onClick={() => printService.printBarcodeStickers(settings.storeName)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+            }}
+            title="In 2 tem mã vạch cố định THANHTOAN và XOA ra máy in barcode hoặc máy in bill"
+          >
+            <Printer size={15} />
+            <span>In 2 Tem Quầy</span>
+          </button>
+        </div>
+
         {/* Danh mục */}
         <div className="category-filter">
           <button
@@ -378,7 +448,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           </button>
         </div>
 
-        {/* Lưới sản phẩm */}
+        {/* Lưới sản phẩm trực quan kèm ảnh */}
         <div className="products-grid">
           {filteredProducts.map((p) => (
             <div
@@ -387,13 +457,29 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               onClick={() => addToCart(p)}
               title={`Mã: ${p.barcode}`}
             >
-              {p.isPrepared ? (
-                <span className="product-tag fb">☕ Pha Chế</span>
-              ) : p.shelfCode ? (
-                <span className="product-tag shelf">📍 {p.shelfCode}</span>
-              ) : null}
+              <div className="product-card-img-wrap">
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    className="product-card-img"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: '2rem' }}>
+                    {p.isPrepared ? '☕' : p.category === 'TapHoa' ? '🛒' : p.category === 'BaoBi' ? '📦' : '🧾'}
+                  </div>
+                )}
+                {p.isPrepared ? (
+                  <span className="product-tag fb">☕ Pha Chế</span>
+                ) : p.shelfCode ? (
+                  <span className="product-tag shelf">📍 {p.shelfCode}</span>
+                ) : null}
+              </div>
 
-              <div className="product-name">{p.name}</div>
+              <div className="product-name" title={p.name}>{p.name}</div>
 
               <div>
                 <div className="product-price">
@@ -477,8 +563,28 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           ) : (
             cart.map((item) => (
               <div key={item.product.id} className="cart-item">
-                <div style={{ flex: 1 }}>
-                  <div className="cart-item-name">{item.product.name}</div>
+                {item.product.imageUrl && (
+                  <img
+                    src={item.product.imageUrl}
+                    alt={item.product.name}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '6px',
+                      objectFit: 'cover',
+                      marginRight: '8px',
+                      border: '1px solid var(--border-color)',
+                      flexShrink: 0,
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="cart-item-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.product.name}
+                  </div>
                   <div className="cart-item-price">
                     {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
                   </div>
@@ -536,7 +642,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                   width: '80px',
                   background: 'rgba(255, 255, 255, 0.06)',
                   border: '1px solid var(--border-color)',
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                   borderRadius: '4px',
                   padding: '2px 5px',
                   textAlign: 'right',
@@ -653,48 +759,82 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               Dán 2 mã vạch này tại quầy thu ngân hoặc cạnh màn hình phụ để khách/thu ngân quét bóp cò nhanh:
             </p>
 
-            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '12px' }}>
+            <div
+              onClick={() => {
+                handleScanBarcode('THANHTOAN');
+                setIsBarcodeStickerModalOpen(false);
+              }}
+              style={{
+                background: '#fff',
+                color: '#000',
+                padding: '16px',
+                borderRadius: '10px',
+                marginBottom: '12px',
+                cursor: 'pointer',
+                border: '2.5px solid #059669',
+                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                transition: 'transform 0.15s ease',
+              }}
+              title="Nhấp chuột hoặc chạm cảm ứng để thực thi lệnh THANHTOAN"
+            >
               <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#059669', marginBottom: '4px' }}>
-                1. MÃ THANH TOÁN / SINH VIETQR ĐỘNG
+                1. MÃ THANH TOÁN (THANHTOAN) - NHẤP ĐỂ CHẠY
               </div>
               <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
-                Lần 1: Sinh mã VietQR đúng số tiền. Lần 2: Xác nhận hoàn tất đơn.
+                Lần 1: Sinh mã VietQR đúng số tiền • Lần 2: Xác nhận hoàn tất đơn
               </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 900 }}>
                 |||| | ||||| ||| |||
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem' }}>
-                THANHTOAN
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem' }}>
+                *THANHTOAN*
               </div>
             </div>
 
-            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '16px' }}>
+            <div
+              onClick={() => {
+                handleScanBarcode('XOA');
+                setIsBarcodeStickerModalOpen(false);
+              }}
+              style={{
+                background: '#fff',
+                color: '#000',
+                padding: '16px',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                cursor: 'pointer',
+                border: '2.5px solid #dc2626',
+                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+                transition: 'transform 0.15s ease',
+              }}
+              title="Nhấp chuột hoặc chạm cảm ứng để thực thi lệnh XOA (hoàn tác 1 món)"
+            >
               <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#dc2626', marginBottom: '4px' }}>
-                2. MÃ HOÀN TÁC / GIẢM 1 MÓN LỠ QUÉT
+                2. MÃ HOÀN TÁC (XOA) - NHẤP ĐỂ CHẠY
               </div>
               <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
-                Quét để giảm 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần).
+                Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần)
               </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 900 }}>
                 ||| |||| | ||| ||||
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem' }}>
-                XOA
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem' }}>
+                *XOA*
               </div>
             </div>
 
             <button
               className="btn btn-primary"
-              style={{ width: '100%' }}
-              onClick={() => window.print()}
+              style={{ width: '100%', marginBottom: '8px' }}
+              onClick={() => printService.printBarcodeStickers(settings.storeName)}
             >
               <Printer size={16} />
-              <span>In Ngay Tem Dán Này</span>
+              <span>In 2 Tem Mã Vạch Này (Khổ 50x30mm / Bill K80)</span>
             </button>
 
             <button
               className="btn btn-secondary"
-              style={{ width: '100%', marginTop: '8px' }}
+              style={{ width: '100%' }}
               onClick={() => setIsBarcodeStickerModalOpen(false)}
             >
               Đóng

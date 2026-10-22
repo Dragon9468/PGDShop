@@ -34,7 +34,7 @@ export const OnlineOrdersView: React.FC = () => {
             <Globe size={28} color="#10b981" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>3. QUẢN LÝ ĐƠN HÀNG ONLINE ĐA SÀN</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Theo dõi đơn hàng từ Shopee, GrabFood, TikTokShop, Web trực tiếp, quản lý mã vận đơn và chiết khấu phí sàn.
           </p>
         </div>
@@ -43,21 +43,21 @@ export const OnlineOrdersView: React.FC = () => {
       {/* 3 Thẻ thống kê tài chính online */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
         <div className="glass-panel" style={{ padding: '18px' }}>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>TỔNG TIỀN HÀNG ONLINE</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>TỔNG TIỀN HÀNG ONLINE</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
             {new Intl.NumberFormat('vi-VN').format(totalGross)}đ
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '18px' }}>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>PHÍ HOA HỒNG SÀN CHIẾT KHẤU</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>PHÍ HOA HỒNG SÀN CHIẾT KHẤU</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f87171', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
             -{new Intl.NumberFormat('vi-VN').format(totalFees)}đ
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '18px' }}>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>THỰC THU RÒNG VỀ TÀI KHOẢN</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>THỰC THU RÒNG VỀ TÀI KHOẢN</div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
             {new Intl.NumberFormat('vi-VN').format(totalNet)}đ
           </div>
@@ -97,7 +97,7 @@ export const OnlineOrdersView: React.FC = () => {
             {filteredOrders.map((order) => (
               <tr key={order.id}>
                 <td>
-                  <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#fff' }}>{order.orderCode}</div>
+                  <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{order.orderCode}</div>
                   <span
                     className={`badge ${
                       order.platform === 'Shopee'
@@ -114,13 +114,13 @@ export const OnlineOrdersView: React.FC = () => {
                 </td>
                 <td>
                   <div style={{ fontWeight: 600 }}>{order.customerName}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{order.customerPhone}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.customerPhone}</div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{order.deliveryAddress}</div>
                 </td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#38bdf8' }}>
                   {order.trackingCode}
                 </td>
-                <td style={{ fontSize: '0.88rem', color: '#cbd5e1' }}>{order.itemsSummary}</td>
+                <td style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{order.itemsSummary}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                   {new Intl.NumberFormat('vi-VN').format(order.totalAmount)}đ
                 </td>
@@ -154,7 +154,7 @@ export const OnlineOrdersView: React.FC = () => {
                     style={{
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid var(--border-color)',
-                      color: '#fff',
+                      color: 'var(--text-primary)',
                       padding: '4px 8px',
                       borderRadius: '4px',
                       fontSize: '0.8rem',

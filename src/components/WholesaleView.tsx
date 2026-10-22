@@ -81,7 +81,7 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
             <Receipt size={28} color="#ec4899" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>5. BÁN SỈ & XUẤT HÓA ĐƠN ĐỎ (VAT INVOICE A4)</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Quản lý khách hàng doanh nghiệp, mã số thuế (MST), xuất và in Hóa Đơn Giá Trị Gia Tăng khổ A4 chuẩn hóa.
           </p>
         </div>
@@ -93,19 +93,19 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
       </div>
 
       {/* Danh sách công ty / khách sỉ */}
-      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#cbd5e1' }}>Khách Hàng Doanh Nghiệp & Đối Tác Sỉ</h3>
+      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: 'var(--text-primary)' }}>Khách Hàng Doanh Nghiệp & Đối Tác Sỉ</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         {customers.map((c) => (
           <div key={c.id} className="glass-panel" style={{ padding: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
               <Building size={22} color="#ec4899" style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>{c.companyName}</h4>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.companyName}</h4>
                 <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontFamily: 'var(--font-mono)', margin: '4px 0' }}>
                   MST: <b>{c.taxId}</b>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{c.address}</div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '6px' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.address}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginTop: '6px' }}>
                   Liên hệ: {c.contactPerson} ({c.phone})
                 </div>
               </div>
@@ -115,7 +115,7 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
       </div>
 
       {/* Danh sách hóa đơn đỏ VAT đã phát hành */}
-      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#cbd5e1' }}>Hóa Đơn Đỏ VAT Khổ A4 Đã Xuất</h3>
+      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: 'var(--text-primary)' }}>Hóa Đơn Đỏ VAT Khổ A4 Đã Xuất</h3>
       <div className="data-table-container">
         <table className="data-table">
           <thead>
@@ -137,7 +137,7 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
                 <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#ec4899' }}>
                   {inv.invoiceNumber}
                 </td>
-                <td style={{ color: '#94a3b8' }}>{inv.createdAt}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{inv.createdAt}</td>
                 <td style={{ fontWeight: 600 }}>{inv.customerName}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>{inv.taxId}</td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>
@@ -178,11 +178,11 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
             <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>Lập Hóa Đơn Đỏ VAT Cho Khách Sỉ</h2>
             <form onSubmit={handleCreateInvoice} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Chọn Doanh Nghiệp Mua Hàng:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chọn Doanh Nghiệp Mua Hàng:</label>
                 <select
                   value={selectedCustomerId}
                   onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 >
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -193,41 +193,41 @@ export const WholesaleView: React.FC<WholesaleViewProps> = ({ settings }) => {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Mặt Hàng Bán Sỉ:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Mặt Hàng Bán Sỉ:</label>
                 <input
                   type="text"
                   required
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Số Lượng:</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số Lượng:</label>
                   <input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Đơn Giá Sỉ (VNĐ):</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Đơn Giá Sỉ (VNĐ):</label>
                   <input
                     type="number"
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Thuế Suất VAT:</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Thuế Suất VAT:</label>
                   <select
                     value={vatRate}
                     onChange={(e) => setVatRate(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   >
                     <option value={0.08}>8% (Nghị định giảm thuế)</option>
                     <option value={0.10}>10% (Thuế tiêu chuẩn)</option>

@@ -274,7 +274,7 @@ export const CapitalTrackingView: React.FC = () => {
       </div>
 
       {syncStatus && (
-        <div style={{ padding: '10px 16px', background: 'var(--accent)', border: '1px solid var(--primary)', borderRadius: '8px', marginBottom: '16px', color: '#fff' }}>
+        <div style={{ padding: '10px 16px', background: 'var(--accent)', border: '1px solid var(--primary)', borderRadius: '8px', marginBottom: '16px', color: 'var(--text-primary)' }}>
           {syncStatus}
         </div>
       )}
@@ -322,14 +322,14 @@ export const CapitalTrackingView: React.FC = () => {
           )}
 
           <div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
               {liquidityStatus === 'EXPAND'
                 ? '🚀 CÓ DƯ ĐỊA LỚN ĐỂ MỞ RỘNG CỬA HÀNG (TIỀN TÍCH LŨY CAO)'
                 : liquidityStatus === 'LOW'
                 ? '⚠️ CẢNH BÁO: DÒNG TIỀN Ở MỨC THẤP DƯỚI NGƯỠNG AN TOÀN'
                 : '✅ DÒNG TIỀN VẬN HÀNH TỐI ƯU & AN TOÀN'}
             </div>
-            <div style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
               {liquidityStatus === 'EXPAND'
                 ? `Lượng tiền mặt của shop hiện đạt ${currentCash} Triệu VNĐ (vượt mốc 260tr). Việc giữ quá nhiều tiền nhàn rỗi trong két không sinh lời tối đa. Bạn nên cân nhắc: 1) Mở thêm điểm bán/chi nhánh mới, 2) Nhập thêm các line hàng mới số lượng lớn để lấy chiết khấu sỉ, 3) Nâng cấp máy móc pha chế CapEx.`
                 : liquidityStatus === 'LOW'
@@ -344,7 +344,7 @@ export const CapitalTrackingView: React.FC = () => {
       <div className="glass-panel" style={{ padding: '20px', position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>
+            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
               PGD/CASH - LƯỢNG TIỀN MẶT THEO PHIÊN (30 NGÀY)
             </span>
             <span style={{ fontSize: '0.75rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px' }}>
@@ -388,7 +388,7 @@ export const CapitalTrackingView: React.FC = () => {
               boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
             }}
           >
-            <div>Ngày: <b style={{ color: '#fff' }}>{hoveredCandle.time}</b></div>
+            <div>Ngày: <b style={{ color: 'var(--text-primary)' }}>{hoveredCandle.time}</b></div>
             <div>Mở phiên: <b>{hoveredCandle.open} tr</b></div>
             <div>Đỉnh tiền (High): <b style={{ color: '#10b981' }}>{hoveredCandle.high} tr</b></div>
             <div>Đáy tiền (Low): <b style={{ color: '#f87171' }}>{hoveredCandle.low} tr</b></div>

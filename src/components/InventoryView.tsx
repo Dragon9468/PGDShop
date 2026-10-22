@@ -69,7 +69,7 @@ export const InventoryView: React.FC = () => {
             <Warehouse size={28} color="#6366f1" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>4. QUẢN LÝ KHO HÀNG & NHẬP XUẤT NGUYÊN VẬT LIỆU</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Quản lý phiếu nhập kho từ nhà cung cấp, xuất kho kiểm kê, tự động đối soát tổng chi phí sang OpEx.
           </p>
         </div>
@@ -99,14 +99,14 @@ export const InventoryView: React.FC = () => {
             <div style={{ fontWeight: 700, color: '#e0e7ff', fontSize: '1rem' }}>
               TỰ ĐỘNG LIÊN KẾT DỮ LIỆU SANG MỤC 7 (OPEX):
             </div>
-            <div style={{ fontSize: '0.88rem', color: '#94a3b8' }}>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
               Tổng tiền mua hàng từ các phiếu Nhập Kho được tổng hợp tự động để làm Chi Phí Nhập Hàng trong Bảng Chi Phí Vận Hành (OpEx).
             </div>
           </div>
         </div>
 
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>TỔNG TIỀN NHẬP KHO THÁNG NÀY:</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>TỔNG TIỀN NHẬP KHO THÁNG NÀY:</div>
           <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#818cf8', fontFamily: 'var(--font-mono)' }}>
             {new Intl.NumberFormat('vi-VN').format(totalInCost)} VNĐ
           </div>
@@ -114,7 +114,7 @@ export const InventoryView: React.FC = () => {
       </div>
 
       {/* Bảng phiếu nhập xuất kho */}
-      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#cbd5e1' }}>Lịch Sử Phiếu Nhập / Xuất Kho</h3>
+      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: 'var(--text-primary)' }}>Lịch Sử Phiếu Nhập / Xuất Kho</h3>
       <div className="data-table-container">
         <table className="data-table">
           <thead>
@@ -131,10 +131,10 @@ export const InventoryView: React.FC = () => {
           <tbody>
             {transactions.map((tx) => (
               <tr key={tx.id}>
-                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#fff' }}>
+                <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {tx.slipCode}
                 </td>
-                <td style={{ color: '#94a3b8' }}>{tx.createdAt}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{tx.createdAt}</td>
                 <td>
                   <span className={`badge ${tx.type === 'IN' ? 'badge-success' : 'badge-danger'}`}>
                     {tx.type === 'IN' ? (
@@ -173,74 +173,74 @@ export const InventoryView: React.FC = () => {
             <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>Tạo Phiếu Nhập Kho Mới</h2>
             <form onSubmit={handleCreateSlip} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Nhà Cung Cấp:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Nhà Cung Cấp:</label>
                 <input
                   type="text"
                   required
                   placeholder="VD: Tổng Kho Cà Phê Ban Mê"
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Tên Mặt Hàng Nhập:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Tên Mặt Hàng Nhập:</label>
                 <input
                   type="text"
                   required
                   placeholder="VD: Hạt Cà Phê Arabica Cầu Đất (Bao 30kg)"
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>ĐVT:</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ĐVT:</label>
                   <input
                     type="text"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Số Lượng:</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số Lượng:</label>
                   <input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Đơn Giá (VNĐ):</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Đơn Giá (VNĐ):</label>
                   <input
                     type="number"
                     value={costPrice}
                     onChange={(e) => setCostPrice(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
               <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '6px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Thành tiền phiếu nhập: </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Thành tiền phiếu nhập: </span>
                 <b style={{ color: '#10b981', fontSize: '1.1rem', fontFamily: 'var(--font-mono)' }}>
                   {new Intl.NumberFormat('vi-VN').format(quantity * costPrice)} VNĐ
                 </b>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ghi chú phiếu:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ghi chú phiếu:</label>
                 <input
                   type="text"
                   placeholder="Ghi chú thêm..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 />
               </div>
 

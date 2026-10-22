@@ -231,7 +231,7 @@ export const ThemePickerModal: React.FC<ThemePickerModalProps> = ({
         padding: '16px',
         overflow: 'hidden',
         userSelect: 'none',
-        color: '#ffffff',
+        color: 'var(--text-primary)',
       }}
     >
       {/* Background Ambient Glow */}

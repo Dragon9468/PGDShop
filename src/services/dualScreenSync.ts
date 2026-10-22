@@ -10,6 +10,7 @@ export interface DualScreenMessage {
   type: 
     | 'SYNC_CART' 
     | 'SET_CHECKOUT_STATUS'
+    | 'SET_CUSTOMER_THEME'
     | 'PAYMENT_COMPLETED' 
     | 'CLEAR_CART' 
     | 'CUSTOMER_SCANNED_BARCODE'
@@ -25,6 +26,7 @@ export interface DualScreenMessage {
     paymentMethod?: 'CASH' | 'VIETQR';
     paidAmount?: number;
     checkoutStatus?: CheckoutStatus;
+    customerTheme?: string;
   };
 }
 
@@ -162,6 +164,18 @@ class DualScreenSyncService {
       type: 'CLEAR_CART',
       payload: {
         checkoutStatus: 'SCANNING',
+      },
+    });
+  }
+
+  /**
+   * Đồng bộ Theme riêng biệt cho Màn hình khách (CFD)
+   */
+  public syncCustomerTheme(customerTheme: string) {
+    this.broadcast({
+      type: 'SET_CUSTOMER_THEME',
+      payload: {
+        customerTheme,
       },
     });
   }

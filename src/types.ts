@@ -194,4 +194,6 @@ export interface AppSettings {
   isAudioEnabled: boolean;
   voiceSpeed: number;
   autoClearDelaySeconds: number;
+  mainTheme?: string;
+  customerTheme?: string;
 }

@@ -23,7 +23,7 @@ export const PreparedProductsView: React.FC = () => {
             <Coffee size={28} color="#f59e0b" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>2. QUẢN LÝ CHẾ BIẾN & ĐỊNH LƯỢNG (F&B / ĐỒ ĂN & CÀ PHÊ)</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Kiểm soát chi tiết công thức định lượng (BOM), tính giá cost vốn nguyên liệu và tỉ lệ lợi nhuận từng ly/món.
           </p>
         </div>
@@ -32,7 +32,7 @@ export const PreparedProductsView: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '20px' }}>
         {/* Danh sách các món chế biến */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h3 style={{ fontSize: '1.05rem', color: '#cbd5e1' }}>Món Chế Biến Tại Quán</h3>
+          <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>Món Chế Biến Tại Quán</h3>
           {recipes.map((recipe) => {
             const isSelected = selectedRecipe?.id === recipe.id;
             const grossProfit = recipe.retailPrice - recipe.standardCost;
@@ -51,19 +51,19 @@ export const PreparedProductsView: React.FC = () => {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff' }}>{recipe.productName}</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{recipe.productName}</h4>
                   <span className="badge badge-success">+{margin}% Lời</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.88rem' }}>
-                  <span style={{ color: '#94a3b8' }}>Giá vốn (Cost):</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Giá vốn (Cost):</span>
                   <span style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>
                     {new Intl.NumberFormat('vi-VN').format(recipe.standardCost)}đ
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.88rem' }}>
-                  <span style={{ color: '#94a3b8' }}>Giá bán Menu:</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Giá bán Menu:</span>
                   <span style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                     {new Intl.NumberFormat('vi-VN').format(recipe.retailPrice)}đ
                   </span>
@@ -78,15 +78,15 @@ export const PreparedProductsView: React.FC = () => {
           <div className="glass-panel" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>{selectedRecipe.productName}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedRecipe.productName}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
                   <Clock size={16} />
                   <span>Thời gian pha chế: ~{selectedRecipe.prepTimeMinutes} phút</span>
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>LỢI NHUẬN GỘP / 1 PHẦN</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>LỢI NHUẬN GỘP / 1 PHẦN</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
                   +{new Intl.NumberFormat('vi-VN').format(selectedRecipe.retailPrice - selectedRecipe.standardCost)}đ
                 </div>
@@ -142,7 +142,7 @@ export const PreparedProductsView: React.FC = () => {
             {/* Hướng dẫn pha chế */}
             <div style={{ marginTop: '24px', background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <h4 style={{ fontSize: '1rem', color: '#fbbf24', marginBottom: '8px' }}>Quy Trình Chế Biến Tiêu Chuẩn:</h4>
-              <p style={{ fontSize: '0.92rem', color: '#cbd5e1', lineHeight: 1.6 }}>{selectedRecipe.instructions}</p>
+              <p style={{ fontSize: '0.92rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>{selectedRecipe.instructions}</p>
             </div>
           </div>
         ) : null}

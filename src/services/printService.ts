@@ -231,6 +231,146 @@ class PrintService {
     this.triggerBrowserPrint(htmlContent);
   }
 
+  /**
+   * In 2 tem mã vạch tiện ích dán quầy (THANHTOAN & XOA) ra máy in barcode hoặc máy in bill
+   */
+  public printBarcodeStickers(storeName: string = 'PGDSHOP POS') {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>In Tem Barcode Tiện Ích - ${storeName}</title>
+        <style>
+          @page { margin: 4mm; size: auto; }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            color: #000;
+            background: #fff;
+          }
+          .label-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 320px;
+            margin: 0 auto;
+          }
+          .sticker-card {
+            border: 2px dashed #000;
+            padding: 14px 10px;
+            border-radius: 8px;
+            text-align: center;
+            page-break-inside: avoid;
+            background: #fff;
+          }
+          .sticker-header {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+          }
+          .sticker-sub {
+            font-size: 9px;
+            color: #444;
+            margin-bottom: 8px;
+          }
+          .barcode-bars {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            height: 52px;
+            gap: 2px;
+            margin: 6px auto;
+          }
+          .bar {
+            background-color: #000;
+            height: 100%;
+          }
+          .b-thin { width: 2px; }
+          .b-med { width: 3px; }
+          .b-thick { width: 5px; }
+          .b-wide { width: 7px; }
+          .sp-1 { width: 2px; }
+          .sp-2 { width: 3px; }
+          .sp-3 { width: 4px; }
+          .barcode-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            margin-top: 4px;
+          }
+          .footer-note {
+            font-size: 8px;
+            color: #666;
+            margin-top: 4px;
+          }
+          @media print {
+            .sticker-card { border: 1.5px solid #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label-grid">
+          <!-- TEM 1: THANHTOAN -->
+          <div class="sticker-card">
+            <div class="sticker-header" style="color: #059669;">1. MÃ LỆNH THANH TOÁN (THANHTOAN)</div>
+            <div class="sticker-sub">Lần 1: Sinh VietQR đúng số tiền • Lần 2: Xác nhận hoàn tất đơn</div>
+            
+            <div class="barcode-bars">
+              <div class="bar b-thick"></div><div class="sp-1"></div>
+              <div class="bar b-thin"></div><div class="sp-2"></div>
+              <div class="bar b-wide"></div><div class="sp-1"></div>
+              <div class="bar b-thin"></div><div class="sp-3"></div>
+              <div class="bar b-med"></div><div class="sp-1"></div>
+              <div class="bar b-thick"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-wide"></div><div class="sp-2"></div>
+              <div class="bar b-med"></div><div class="sp-1"></div>
+              <div class="bar b-thick"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-wide"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-thick"></div>
+            </div>
+
+            <div class="barcode-text">*THANHTOAN*</div>
+            <div class="footer-note">${storeName} • Dán tại quầy thu ngân hoặc cạnh màn hình phụ</div>
+          </div>
+
+          <!-- TEM 2: XOA -->
+          <div class="sticker-card">
+            <div class="sticker-header" style="color: #dc2626;">2. MÃ LỆNH HOÀN TÁC (XOA)</div>
+            <div class="sticker-sub">Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần)</div>
+            
+            <div class="barcode-bars">
+              <div class="bar b-wide"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-med"></div><div class="sp-3"></div>
+              <div class="bar b-thick"></div><div class="sp-1"></div>
+              <div class="bar b-wide"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-thick"></div><div class="sp-2"></div>
+              <div class="bar b-med"></div><div class="sp-1"></div>
+              <div class="bar b-wide"></div><div class="sp-2"></div>
+              <div class="bar b-thin"></div><div class="sp-1"></div>
+              <div class="bar b-thick"></div>
+            </div>
+
+            <div class="barcode-text">*XOA*</div>
+            <div class="footer-note">${storeName} • Dán cạnh súng quét barcode để bấm cò nhanh</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    this.triggerBrowserPrint(htmlContent);
+  }
+
   private triggerBrowserPrint(html: string) {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';

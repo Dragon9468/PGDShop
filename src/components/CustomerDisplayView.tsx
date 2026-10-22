@@ -29,6 +29,17 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>('SCANNING');
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
 
+  // Theme riêng biệt cho màn hình khách (CFD) - Độc lập với thu ngân
+  const [customerTheme, setCustomerTheme] = useState<string>(() => {
+    return localStorage.getItem('pgd_customer_theme') || settings.customerTheme || 'sunset-glow';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('customer-display')) {
+      document.documentElement.setAttribute('data-theme', customerTheme);
+    }
+  }, [customerTheme]);
+
   // Trạng thái thanh toán
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'VIETQR'>('VIETQR');
@@ -80,6 +91,12 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         }
         if (msg.payload.finalAmount !== undefined) {
           setFinalAmount(msg.payload.finalAmount);
+        }
+      } else if (msg.type === 'SET_CUSTOMER_THEME' && msg.payload?.customerTheme) {
+        setCustomerTheme(msg.payload.customerTheme);
+        localStorage.setItem('pgd_customer_theme', msg.payload.customerTheme);
+        if (typeof window !== 'undefined' && window.location.hash.includes('customer-display')) {
+          document.documentElement.setAttribute('data-theme', msg.payload.customerTheme);
         }
       } else if (msg.type === 'PAYMENT_COMPLETED' && msg.payload) {
         triggerSuccessScreen(
@@ -215,7 +232,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   );
 
   return (
-    <div className="cfd-fixed-container">
+    <div className="cfd-fixed-container" data-theme={customerTheme}>
       {/* NẾU ĐÃ THANH TOÁN THÀNH CÔNG */}
       {isSuccess ? (
         <div
@@ -264,7 +281,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
               fontSize: '2.8rem',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
-              color: '#fff',
+              color: 'var(--text-primary)',
               background: 'rgba(255, 255, 255, 0.05)',
               padding: '10px 32px',
               borderRadius: '12px',
@@ -281,7 +298,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
 
           {countdown !== null && (
             <div style={{ marginTop: '20px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Đón khách tiếp theo trong: <b style={{ color: '#fff' }}>{countdown}s</b>
+              Đón khách tiếp theo trong: <b style={{ color: 'var(--text-primary)' }}>{countdown}s</b>
             </div>
           )}
         </div>
@@ -293,7 +310,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Store size={22} color="var(--primary)" />
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>{settings.storeName}</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{settings.storeName}</span>
               </div>
               <span className={`badge ${checkoutStatus === 'AWAITING_PAYMENT' ? 'badge-primary' : 'badge-success'}`}>
                 {checkoutStatus === 'AWAITING_PAYMENT' ? '💳 Chờ Khách Quét QR' : '🛒 Đang Quét Hàng'}
@@ -331,16 +348,37 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: 'var(--bg-card)',
                       padding: '8px 12px',
                       borderRadius: '8px',
                       border: '1px solid var(--border-color)',
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '0.98rem', fontWeight: 600, color: '#fff' }}>{item.product.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      {item.product.imageUrl && (
+                        <img
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          style={{
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '8px',
+                            objectFit: 'cover',
+                            border: '1px solid var(--border-color)',
+                            flexShrink: 0,
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.product.name}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
+                        </div>
                       </div>
                     </div>
 
@@ -353,7 +391,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                           fontFamily: 'var(--font-mono)',
                           fontSize: '0.92rem',
                           fontWeight: 700,
-                          color: '#fff',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         x{item.quantity}
@@ -391,7 +429,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   Tổng số lượng: <b>{cart.reduce((s, i) => s + i.quantity, 0)} món</b>
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                   TỔNG TIỀN:
                 </div>
               </div>
@@ -407,49 +445,67 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
               </div>
             </div>
 
-            {/* 2 Tem / Nút Barcode Lệnh tiện ích dán quầy */}
+            {/* 2 Tem / Nút Barcode Lệnh tiện ích dán quầy (Hỗ trợ Touch Screen & Chuột Click) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
               {/* Nút / Mã Barcode THANH TOÁN */}
-              <div
+              <button
+                type="button"
                 className="cfd-barcode-sticker"
                 onClick={handleTriggerPaymentBarcode}
                 style={{
-                  border: checkoutStatus === 'AWAITING_PAYMENT' ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)',
-                  background: checkoutStatus === 'AWAITING_PAYMENT' ? 'rgba(118, 254, 40, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                  width: '100%',
+                  border: checkoutStatus === 'AWAITING_PAYMENT' ? '2.5px solid var(--primary)' : '1.5px solid var(--border-color)',
+                  background: checkoutStatus === 'AWAITING_PAYMENT' ? 'rgba(118, 254, 40, 0.15)' : 'var(--bg-card)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
                 }}
-                title={checkoutStatus === 'SCANNING' ? 'Quét mã này để Sinh mã VietQR chuyển khoản' : 'Quét mã này để Xác nhận đã chuyển tiền'}
+                title={checkoutStatus === 'SCANNING' ? 'Quét mã vạch hoặc Chạm/Click để Sinh mã VietQR chuyển khoản' : 'Quét mã vạch hoặc Chạm/Click để Xác nhận đã chuyển tiền'}
               >
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 800 }}>
-                    {checkoutStatus === 'AWAITING_PAYMENT' ? 'XÁC NHẬN ĐÃ CHUYỂN:' : 'QUÉT XONG -> BẤM THANH TOÁN:'}
+                    {checkoutStatus === 'AWAITING_PAYMENT' ? 'XÁC NHẬN ĐÃ CHUYỂN:' : 'QUÉT / CHẠM THANH TOÁN:'}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: '#fff' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
                     *THANHTOAN*
                   </div>
+                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    |||| | ||||| |||
+                  </div>
                 </div>
-                <div style={{ background: 'var(--accent)', padding: '6px', borderRadius: '6px' }}>
-                  <Check size={18} color="var(--primary)" />
+                <div style={{ background: 'var(--accent)', padding: '8px', borderRadius: '8px' }}>
+                  <Check size={20} color="var(--primary)" />
                 </div>
-              </div>
+              </button>
 
               {/* Nút / Mã Barcode HOÀN TÁC / GIẢM 1 */}
-              <div
+              <button
+                type="button"
                 className="cfd-barcode-sticker"
                 onClick={handleTriggerUndoBarcode}
-                title="Quét mã này để Hoàn tác 1 số lượng món vừa quét (ví dụ lỡ scan 2 lần)"
+                style={{
+                  width: '100%',
+                  border: '1.5px solid #ef4444',
+                  background: 'var(--bg-card)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                title="Quét mã vạch hoặc Chạm/Click để Hoàn tác 1 số lượng món vừa quét (ví dụ lỡ scan 2 lần)"
               >
                 <div>
                   <div style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 800 }}>
-                    HOÀN TÁC / GIẢM 1 MÓN LỠ QUÉT:
+                    HOÀN TÁC / GIẢM 1 MÓN:
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: '#fff' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
                     *XOA*
                   </div>
+                  <div style={{ fontFamily: 'monospace', letterSpacing: '2px', fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    ||| |||| | |||
+                  </div>
                 </div>
-                <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '6px', borderRadius: '6px' }}>
-                  <RotateCcw size={18} color="#f87171" />
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '8px', borderRadius: '8px' }}>
+                  <RotateCcw size={20} color="#f87171" />
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -492,7 +548,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   <ScanLine size={36} color="#38bdf8" />
                 </div>
 
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                   ĐANG QUÉT MÓN HÀNG ({cart.reduce((s, i) => s + i.quantity, 0)} món)
                 </h3>
 
@@ -577,7 +633,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Ngân hàng:</span>
-                    <b style={{ color: '#fff' }}>{settings.bankConfig.bankId}</b>
+                    <b style={{ color: 'var(--text-primary)' }}>{settings.bankConfig.bankId}</b>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Số tài khoản:</span>
@@ -587,7 +643,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Chủ TK:</span>
-                    <b style={{ color: '#fff' }}>{settings.bankConfig.accountName}</b>
+                    <b style={{ color: 'var(--text-primary)' }}>{settings.bankConfig.accountName}</b>
                   </div>
                 </div>
 

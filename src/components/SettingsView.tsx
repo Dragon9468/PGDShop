@@ -18,9 +18,13 @@ import {
   GitBranch,
   Palette,
   Sparkles,
+  Printer,
+  Monitor,
 } from 'lucide-react';
 import { ThemePickerModal } from './ThemePickerModal';
 import { THEMES, CATEGORIES } from '../lib/themes';
+import { dualScreenSync } from '../services/dualScreenSync';
+import { printService } from '../services/printService';
 
 interface SettingsViewProps {
   settings: AppSettings;
@@ -36,14 +40,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
   // Theme states
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [currentThemeId, setCurrentThemeId] = useState<string>(() => {
-    return localStorage.getItem('pgd_theme') || 'cyber-neon';
+    return localStorage.getItem('pgd_theme') || settings.mainTheme || 'cyber-neon';
+  });
+  const [customerThemeId, setCustomerThemeId] = useState<string>(() => {
+    return localStorage.getItem('pgd_customer_theme') || settings.customerTheme || 'sunset-glow';
   });
   const [selectedCatTab, setSelectedCatTab] = useState<'Light' | 'Dark' | 'Gradient' | 'Classic'>('Gradient');
 
   const handleApplyTheme = (themeId: string) => {
     setCurrentThemeId(themeId);
+    setFormData((prev) => ({ ...prev, mainTheme: themeId }));
     localStorage.setItem('pgd_theme', themeId);
     document.documentElement.setAttribute('data-theme', themeId);
+    soundService.playSuccessChime();
+  };
+
+  const handleApplyCustomerTheme = (themeId: string) => {
+    setCustomerThemeId(themeId);
+    setFormData((prev) => ({ ...prev, customerTheme: themeId }));
+    localStorage.setItem('pgd_customer_theme', themeId);
+    dualScreenSync.syncCustomerTheme(themeId);
     soundService.playSuccessChime();
   };
 
@@ -85,7 +101,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
             <Settings size={28} color="#38bdf8" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>CẤU HÌNH HỆ THỐNG & KẾT NỐI ĐA NỀN TẢNG</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Thiết lập Theme giao diện Ftel, tài khoản ngân hàng VietQR, Supabase Realtime, Google Sheets Webhook và Thiết Bị Quầy.
           </p>
         </div>
@@ -133,13 +149,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '14px 18px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Theme Đang Kích Hoạt:
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Theme Đang Kích Hoạt (Thu Ngân):
               </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fff', marginTop: '2px' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {activeThemeObj.name} <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginLeft: '8px' }}>({activeThemeObj.category} Planet)</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 {activeThemeObj.desc}
               </div>
             </div>
@@ -152,6 +168,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <span style={{ width: '12px', height: '12px', borderRadius: '9999px', backgroundColor: activeThemeObj.secondary }} />
                 <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{activeThemeObj.secondary}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cấu Hình Nhiều Màn Hình Độc Lập (Multi-Screen Display Themes) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '18px', background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '6px' }}>
+                <Monitor size={16} />
+                <span>Màn 1: Giao Diện Thu Ngân / Quản Trị:</span>
+              </label>
+              <select
+                value={currentThemeId}
+                onChange={(e) => handleApplyTheme(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                {CATEGORIES.map((cat) => (
+                  <optgroup key={cat} label={`Hành Tinh ${cat} (${THEMES.filter(t => t.category === cat).length} Themes)`}>
+                    {THEMES.filter((t) => t.category === cat).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.category})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Theme quầy thu ngân, quản lý kho kệ và các nghiệp vụ bán lẻ.
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px' }}>
+                <Smartphone size={16} />
+                <span>Màn 2: Màn Hình Đối Diện Khách (CFD):</span>
+              </label>
+              <select
+                value={customerThemeId}
+                onChange={(e) => handleApplyCustomerTheme(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--bg-surface)', border: '1.5px solid #38bdf8', color: 'var(--text-primary)', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                {CATEGORIES.map((cat) => (
+                  <optgroup key={cat} label={`Hành Tinh ${cat} (${THEMES.filter(t => t.category === cat).length} Themes)`}>
+                    {THEMES.filter((t) => t.category === cat).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.category})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Theme màn hình khách tự phục vụ, tự động đồng bộ realtime.
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#f59e0b', marginBottom: '6px' }}>
+                <Globe size={16} />
+                <span>Màn 3: Kiosk / Màn Khách 2 (Tương Lai):</span>
+              </label>
+              <select
+                defaultValue="amber-gold"
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                {THEMES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.category})
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Sẵn sàng cấu hình khi lắp nhiều màn cho nhiều khách cùng thao tác.
               </div>
             </div>
           </div>
@@ -210,12 +299,82 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                         <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: t.secondary }} />
                       </div>
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.3, height: '32px', overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.3, height: '32px', overflow: 'hidden' }}>
                       {t.desc}
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+
+        {/* MÃ VẠCH LỆNH CỐ ĐỊNH & MÁY IN BARCODE */}
+        <div className="glass-panel" style={{ padding: '20px', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '1.15rem', fontWeight: 800 }}>
+              <Barcode size={22} />
+              <span>2 Mã Vạch Lệnh Tiện Ích Cố Định Quầy & Máy In Barcode</span>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => printService.printBarcodeStickers(formData.storeName)}
+              style={{ background: '#10b981', color: '#040d06', fontWeight: 800, padding: '10px 18px', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)' }}
+            >
+              <Printer size={16} />
+              <span>IN 2 TEM RA MÁY IN BARCODE / BILL K80</span>
+            </button>
+          </div>
+
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+            Hệ thống đã thiết lập cố định 2 mã barcode lệnh: <b>THANHTOAN</b> (Sinh VietQR nạp đúng số tiền & xác nhận đơn) và <b>XOA</b> (Hoàn tác 1 số lượng món vừa bóp cò nhầm). Bạn có thể gắn máy in barcode decal (khổ 50x30mm) hoặc máy in bill nhiệt K80 để in dán quầy, hoặc cho phép khách chạm/click dạng button trên màn hình:
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+            {/* TEM 1 */}
+            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '12px', border: '2.5px solid #059669', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#059669' }}>
+                  1. MÃ LỆNH THANH TOÁN (THANHTOAN)
+                </span>
+                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>CỐ ĐỊNH</span>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
+                Lần 1: Chốt đơn và sinh mã VietQR động nạp sẵn đúng số tiền • Lần 2: Xác nhận hoàn tất đơn khi tiền về.
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '2.2rem', letterSpacing: '4px', fontWeight: 900, textAlign: 'center', color: '#000' }}>
+                |||| | ||||| ||| |||
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem', textAlign: 'center', marginTop: '2px', color: '#059669' }}>
+                *THANHTOAN*
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center', marginTop: '6px' }}>
+                Dán tại quầy thu ngân hoặc cạnh màn hình phụ CFD
+              </div>
+            </div>
+
+            {/* TEM 2 */}
+            <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '12px', border: '2.5px solid #dc2626', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#dc2626' }}>
+                  2. MÃ LỆNH HOÀN TÁC (XOA)
+                </span>
+                <span style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>CỐ ĐỊNH</span>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
+                Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ khách mua 1 hộp giấy nhưng lỡ tay bóp cò 2 lần).
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '2.2rem', letterSpacing: '4px', fontWeight: 900, textAlign: 'center', color: '#000' }}>
+                ||| |||| | ||| ||||
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem', textAlign: 'center', marginTop: '2px', color: '#dc2626' }}>
+                *XOA*
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center', marginTop: '6px' }}>
+                Dán trên thân hoặc cạnh chân đế súng quét barcode
+              </div>
             </div>
           </div>
         </div>
@@ -229,48 +388,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Tên Cửa Hàng (In trên bill & CFD):</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Tên Cửa Hàng (In trên bill & CFD):</label>
               <input
                 type="text"
                 value={formData.storeName}
                 onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Mã Số Thuế Cửa Hàng:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Mã Số Thuế Cửa Hàng:</label>
               <input
                 type="text"
                 value={formData.storeTaxId}
                 onChange={(e) => setFormData({ ...formData, storeTaxId: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Địa Chỉ Cửa Hàng:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Địa Chỉ Cửa Hàng:</label>
               <input
                 type="text"
                 value={formData.storeAddress}
                 onChange={(e) => setFormData({ ...formData, storeAddress: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Số Điện Thoại Hotline:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số Điện Thoại Hotline:</label>
               <input
                 type="text"
                 value={formData.storePhone}
                 onChange={(e) => setFormData({ ...formData, storePhone: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ngân Hàng Thụ Hưởng (VietQR):</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ngân Hàng Thụ Hưởng (VietQR):</label>
               <select
                 value={formData.bankConfig.bankId}
                 onChange={(e) => setFormData({ ...formData, bankConfig: { ...formData.bankConfig, bankId: e.target.value } })}
-                style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               >
                 {POPULAR_BANKS.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
@@ -279,22 +438,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
             </div>
 
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Số Tài Khoản Ngân Hàng:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số Tài Khoản Ngân Hàng:</label>
               <input
                 type="text"
                 value={formData.bankConfig.accountNo}
                 onChange={(e) => setFormData({ ...formData, bankConfig: { ...formData.bankConfig, accountNo: e.target.value } })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px', fontFamily: 'var(--font-mono)' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', fontFamily: 'var(--font-mono)' }}
               />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Tên Chủ Tài Khoản (In hoa không dấu):</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Tên Chủ Tài Khoản (In hoa không dấu):</label>
               <input
                 type="text"
                 value={formData.bankConfig.accountName}
                 onChange={(e) => setFormData({ ...formData, bankConfig: { ...formData.bankConfig, accountName: e.target.value.toUpperCase() } })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
           </div>
@@ -309,35 +468,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Supabase Project URL:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Supabase Project URL:</label>
               <input
                 type="text"
                 placeholder="https://xyzcompany.supabase.co"
                 value={formData.supabaseUrl}
                 onChange={(e) => setFormData({ ...formData, supabaseUrl: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Supabase Anon Public Key:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Supabase Anon Public Key:</label>
               <input
                 type="password"
                 placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 value={formData.supabaseAnonKey}
                 onChange={(e) => setFormData({ ...formData, supabaseAnonKey: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Google Sheets Apps Script Web App URL (Tùy chọn):</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Google Sheets Apps Script Web App URL (Tùy chọn):</label>
               <input
                 type="text"
                 placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
                 value={formData.googleSheetsWebhookUrl}
                 onChange={(e) => setFormData({ ...formData, googleSheetsWebhookUrl: e.target.value })}
-                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
+                style={{ width: '100%', padding: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px' }}
               />
               <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
                 💡 File script tạo 8 Tab mẫu sẵn sàng tại: <code>google-sheets/PGDShop_GoogleAppsScript.js</code>
@@ -360,7 +519,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <Volume2 size={16} color="#10b981" />
                 <span>Loa Bluetooth / Loa Quầy Thu Ngân</span>
               </h4>
-              <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: '12px', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
                 Hệ thống tự động phát âm thanh qua thiết bị phát mặc định của máy tính (kết nối Bluetooth với bất kỳ loa nào).
               </p>
               <button type="button" className="btn btn-secondary" onClick={handleTestSpeaker}>
@@ -375,7 +534,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <Barcode size={16} color="#38bdf8" />
                 <span>Kiểm Tra Súng Quét Mã Vạch (USB Barcode Gun)</span>
               </h4>
-              <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: '10px' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
                 Bấm chuột vào ô bên dưới và bóp cò súng quét lên một mã vạch bất kỳ:
               </p>
               <input
@@ -388,7 +547,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                     handleTestBarcodeGun(testBarcodeInput);
                   }
                 }}
-                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
               />
               {barcodeTestSuccess && (
                 <div style={{ marginTop: '8px', color: '#10b981', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -412,7 +571,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <Globe size={16} />
                 <span>Cloudflare Deploy từ PC</span>
               </div>
-              <p style={{ color: '#cbd5e1', lineHeight: 1.4 }}>
+              <p style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
                 Mở file <code>scripts/deploy-cloudflare-tunnel.bat</code> để kết nối máy tính cửa hàng với tên miền riêng (Cloudflare Tunnel miễn phí, không cần mở port).
               </p>
             </div>
@@ -422,7 +581,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <GitBranch size={16} />
                 <span>Sao Lưu GitHub Tự Động</span>
               </div>
-              <p style={{ color: '#cbd5e1', lineHeight: 1.4 }}>
+              <p style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
                 Chạy <code>scripts/auto-backup-github.bat</code> để tự động đưa toàn bộ mã nguồn lên GitHub. Có thể đặt lịch trong Windows Task Scheduler.
               </p>
             </div>
@@ -432,7 +591,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                 <Smartphone size={16} />
                 <span>Xuất App Android (APK)</span>
               </div>
-              <p style={{ color: '#cbd5e1', lineHeight: 1.4 }}>
+              <p style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
                 Chạy <code>npm run build</code> rồi <code>npx cap add android</code> và <code>npx cap open android</code> để build file cài đặt APK cho điện thoại và máy tính bảng.
               </p>
             </div>

@@ -38,6 +38,7 @@ const INITIAL_PRODUCTS: Product[] = [
     minStock: 10,
     shelfCode: 'KE-A1-T1',
     isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-02',
@@ -52,6 +53,7 @@ const INITIAL_PRODUCTS: Product[] = [
     minStock: 8,
     shelfCode: 'KE-A1-T1',
     isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-03',
@@ -66,6 +68,7 @@ const INITIAL_PRODUCTS: Product[] = [
     minStock: 24,
     shelfCode: 'KE-A1-T2',
     isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-04',
@@ -80,6 +83,7 @@ const INITIAL_PRODUCTS: Product[] = [
     minStock: 10,
     shelfCode: 'KE-B1-T1',
     isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-05',
@@ -94,6 +98,7 @@ const INITIAL_PRODUCTS: Product[] = [
     minStock: 15,
     shelfCode: 'KE-B2-T1',
     isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=300&auto=format&fit=crop&q=80',
   },
   // Các món chế biến tại quầy (F&B)
   {
@@ -108,6 +113,7 @@ const INITIAL_PRODUCTS: Product[] = [
     stockQuantity: 999,
     minStock: 0,
     isPrepared: true,
+    imageUrl: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-fb-02',
@@ -121,6 +127,7 @@ const INITIAL_PRODUCTS: Product[] = [
     stockQuantity: 999,
     minStock: 0,
     isPrepared: true,
+    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-fb-03',
@@ -134,6 +141,7 @@ const INITIAL_PRODUCTS: Product[] = [
     stockQuantity: 999,
     minStock: 0,
     isPrepared: true,
+    imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300&auto=format&fit=crop&q=80',
   },
   {
     id: 'prod-fb-04',
@@ -147,6 +155,7 @@ const INITIAL_PRODUCTS: Product[] = [
     stockQuantity: 999,
     minStock: 0,
     isPrepared: true,
+    imageUrl: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=300&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -574,6 +583,8 @@ const INITIAL_SETTINGS: AppSettings = {
   isAudioEnabled: true,
   voiceSpeed: 1.0,
   autoClearDelaySeconds: 3,
+  mainTheme: 'cyber-neon',
+  customerTheme: 'sunset-glow',
 };
 
 class StorageService {
@@ -615,7 +626,16 @@ class StorageService {
 
   // --- Products ---
   public getProducts(): Product[] {
-    return this.getItem('products', INITIAL_PRODUCTS);
+    const list = this.getItem<Product[]>('products', INITIAL_PRODUCTS);
+    return list.map((item) => {
+      if (!item.imageUrl) {
+        const fallback = INITIAL_PRODUCTS.find((p) => p.id === item.id);
+        if (fallback?.imageUrl) {
+          return { ...item, imageUrl: fallback.imageUrl };
+        }
+      }
+      return item;
+    });
   }
   public saveProducts(products: Product[]): void {
     this.setItem('products', products);
@@ -623,6 +643,14 @@ class StorageService {
   public addProduct(product: Product): void {
     const list = this.getProducts();
     list.unshift(product);
+    this.saveProducts(list);
+  }
+  public updateProduct(product: Product): void {
+    const list = this.getProducts().map((p) => (p.id === product.id ? product : p));
+    this.saveProducts(list);
+  }
+  public deleteProduct(id: string): void {
+    const list = this.getProducts().filter((p) => p.id !== id);
     this.saveProducts(list);
   }
 

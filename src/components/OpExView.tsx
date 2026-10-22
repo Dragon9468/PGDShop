@@ -53,7 +53,7 @@ export const OpExView: React.FC = () => {
       case 'NHẬP HÀNG KHO': return <ShoppingBag size={16} color="#10b981" />;
       case 'MẶT BẰNG': return <Home size={16} color="#60a5fa" />;
       case 'LƯƠNG': return <Users size={16} color="#f43f5e" />;
-      default: return <Zap size={16} color="#94a3b8" />;
+      default: return <Zap size={16} color="var(--text-secondary)" />;
     }
   };
 
@@ -65,7 +65,7 @@ export const OpExView: React.FC = () => {
             <Zap size={28} color="#ef4444" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>7. OPEX (CHI PHÍ VẬN HÀNH ĐỊNH KỲ)</h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Kiểm soát chi phí điện, nước, bảo trì, vật tư (giấy in, mực, ly) và tự động kéo tổng chi phí nhập hàng từ Kho Hàng.
           </p>
         </div>
@@ -79,11 +79,11 @@ export const OpExView: React.FC = () => {
       {/* 2 Thẻ tổng quan chi phí OpEx */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px', marginBottom: '24px' }}>
         <div className="glass-panel" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>TỔNG CHI PHÍ VẬN HÀNH (OPEX) THÁNG NÀY</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>TỔNG CHI PHÍ VẬN HÀNH (OPEX) THÁNG NÀY</div>
           <div style={{ fontSize: '2.4rem', fontWeight: 800, color: '#f87171', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
             {new Intl.NumberFormat('vi-VN').format(totalOpEx)} VNĐ
           </div>
-          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '6px' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '6px' }}>
             Bao gồm chi phí vận hành cố định + chi phí mua hàng hóa nhập kho
           </div>
         </div>
@@ -111,7 +111,7 @@ export const OpExView: React.FC = () => {
             {new Intl.NumberFormat('vi-VN').format(inventoryCostItem ? inventoryCostItem.amount : 0)} VNĐ
           </div>
 
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Tự động tổng hợp từ tất cả phiếu nhập hàng trong Quản Lý Kho Hàng mà không cần nhập lại bằng tay.
           </div>
         </div>
@@ -141,7 +141,7 @@ export const OpExView: React.FC = () => {
                       <span>{expense.category}</span>
                     </div>
                   </td>
-                  <td style={{ color: '#94a3b8' }}>{expense.expenseDate}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{expense.expenseDate}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f87171' }}>
                     {new Intl.NumberFormat('vi-VN').format(expense.amount)}đ
                   </td>
@@ -162,7 +162,7 @@ export const OpExView: React.FC = () => {
                       <span className="badge badge-info">Nhập thủ công</span>
                     )}
                   </td>
-                  <td style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>{expense.notes}</td>
+                  <td style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{expense.notes}</td>
                 </tr>
               );
             })}
@@ -177,11 +177,11 @@ export const OpExView: React.FC = () => {
             <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>Ghi Nhận Khoản Chi Phí Vận Hành (OpEx)</h2>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Hạng Mục Chi:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Hạng Mục Chi:</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as OpExExpense['category'])}
-                  style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 >
                   <option value="ĐIỆN">TIỀN ĐIỆN</option>
                   <option value="NƯỚC">TIỀN NƯỚC</option>
@@ -195,34 +195,34 @@ export const OpExView: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Số Tiền (VNĐ):</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số Tiền (VNĐ):</label>
                   <input
                     type="number"
                     required
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ngày Chi:</label>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ngày Chi:</label>
                   <input
                     type="date"
                     value={expenseDate}
                     onChange={(e) => setExpenseDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                    style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ghi chú chứng từ:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ghi chú chứng từ:</label>
                 <input
                   type="text"
                   placeholder="VD: Hóa đơn điện tử EVN tháng 10"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }}
                 />
               </div>
 
