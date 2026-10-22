@@ -5,6 +5,8 @@
 import {
   Product,
   ShelfLocation,
+  WarehouseLocation,
+  WarehouseItem,
   PreparedRecipe,
   OnlineOrder,
   InventoryTransaction,
@@ -203,6 +205,126 @@ const INITIAL_SHELVES: ShelfLocation[] = [
     status: 'ACTIVE',
     notes: 'Vật tư tiêu hao văn phòng & quầy thu ngân',
     assignedProducts: ['Giấy in nhiệt K80', 'Ruy băng máy in'],
+  },
+];
+
+const INITIAL_WAREHOUSE_LOCATIONS: WarehouseLocation[] = [
+  { id: 'wh-loc-01', code: 'KHO-A1-T1', zone: 'Khu A (Hàng Khô / Đóng Gói)', tier: 1, capacity: 50, currentCount: 28, status: 'ACTIVE', notes: 'Khu vực lưu trữ thùng lon, chai nước ngọt, đồ hộp sỉ' },
+  { id: 'wh-loc-02', code: 'KHO-B1-T1', zone: 'Khu B (Nguyên Liệu Pha Chế F&B)', tier: 1, capacity: 40, currentCount: 32, status: 'ACTIVE', notes: 'Bao cà phê hạt mộc 30kg, thùng sữa đặc 48 hộp, can siro' },
+  { id: 'wh-loc-03', code: 'KHO-C1-T1', zone: 'Khu C (Bao Bì & Vật Tư Quán)', tier: 1, capacity: 60, currentCount: 45, status: 'ACTIVE', notes: 'Thùng ly giấy 1000 cái, thùng ống hút, thùng giấy in K80' },
+  { id: 'wh-loc-04', code: 'KHO-LANH-01', zone: 'Khu Lạnh (Kho Mát Bảo Quản)', tier: 1, capacity: 25, currentCount: 18, status: 'ACTIVE', notes: 'Sữa tươi thanh trùng, bơ, pate, sốt pha chế' },
+];
+
+const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
+  {
+    id: 'wh-item-01',
+    sku: 'WH-CF-01',
+    name: 'Cà phê Hạt Robusta Mộc S18 (Bao Sỉ)',
+    category: 'NguyenLieu_FB',
+    bulkUnit: 'Bao',
+    packageSpec: 'Bao 30kg hạt rang mộc',
+    importPrice: 4800000,
+    stockQuantity: 8,
+    minStock: 2,
+    locationCode: 'KHO-B1-T1',
+    supplier: 'Tổng Kho Cà Phê Ban Mê',
+    unitsPerBulk: 60,
+    linkedShelfProductId: 'prod-01',
+    imageUrl: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-02',
+    sku: 'WH-CF-02',
+    name: 'Cà phê Arabica Cầu Đất (Bao Sỉ)',
+    category: 'NguyenLieu_FB',
+    bulkUnit: 'Bao',
+    packageSpec: 'Bao 20kg hạt mộc',
+    importPrice: 4400000,
+    stockQuantity: 5,
+    minStock: 2,
+    locationCode: 'KHO-B1-T1',
+    supplier: 'Tổng Kho Cà Phê Ban Mê',
+    unitsPerBulk: 40,
+    linkedShelfProductId: 'prod-02',
+    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-03',
+    sku: 'WH-SUA-01',
+    name: 'Sữa Đặc Phương Nam (Thùng Sỉ 48 Hộp)',
+    category: 'HangKho_DongGoi',
+    bulkUnit: 'Thùng',
+    packageSpec: 'Thùng 48 lon (380g/lon)',
+    importPrice: 840000,
+    stockQuantity: 15,
+    minStock: 4,
+    locationCode: 'KHO-A1-T1',
+    supplier: 'Đại Lý Phân Phối Sữa Vinamilk',
+    unitsPerBulk: 48,
+    linkedShelfProductId: 'prod-03',
+    imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-04',
+    sku: 'WH-LY-01',
+    name: 'Ly Giấy Kraft 500ml Kèm Nắp (Thùng 1000 Cái)',
+    category: 'BaoBi',
+    bulkUnit: 'Thùng',
+    packageSpec: 'Thùng 20 cây (50 cái/cây = 1000 cái)',
+    importPrice: 820000,
+    stockQuantity: 12,
+    minStock: 3,
+    locationCode: 'KHO-C1-T1',
+    supplier: 'Công ty Bao Bì Sài Gòn Xanh',
+    unitsPerBulk: 20,
+    linkedShelfProductId: 'prod-04',
+    imageUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-05',
+    sku: 'WH-GIAY-01',
+    name: 'Giấy In Nhiệt K80 Phi 45 Bọc Bạc (Thùng 50 Cuộn)',
+    category: 'VanPhongPham',
+    bulkUnit: 'Thùng',
+    packageSpec: 'Thùng 50 cuộn bọc bạc chống ẩm',
+    importPrice: 320000,
+    stockQuantity: 18,
+    minStock: 5,
+    locationCode: 'KHO-C1-T1',
+    supplier: 'Tổng Kho Thiết Bị An Nam',
+    unitsPerBulk: 50,
+    linkedShelfProductId: 'prod-05',
+    imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-06',
+    sku: 'WH-SIRO-01',
+    name: 'Siro Đào Golden Farm (Can 5 Lít Pha Chế)',
+    category: 'NguyenLieu_FB',
+    bulkUnit: 'Can',
+    packageSpec: 'Can 5 Lít đậm đặc',
+    importPrice: 380000,
+    stockQuantity: 10,
+    minStock: 3,
+    locationCode: 'KHO-B1-T1',
+    supplier: 'Cty Nguyên Liệu Pha Chế Việt',
+    unitsPerBulk: 5,
+    imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'wh-item-07',
+    sku: 'WH-NUOC-01',
+    name: 'Nước Ngọt Coca Cola (Thùng 24 Lon 320ml)',
+    category: 'HangKho_DongGoi',
+    bulkUnit: 'Thùng',
+    packageSpec: 'Thùng 24 lon 320ml',
+    importPrice: 195000,
+    stockQuantity: 25,
+    minStock: 5,
+    locationCode: 'KHO-A1-T1',
+    supplier: 'Đại Lý Nước Giải Khát Miền Nam',
+    unitsPerBulk: 24,
+    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -673,6 +795,44 @@ class StorageService {
   public saveRecipes(recipes: PreparedRecipe[]): void {
     this.setItem('recipes', recipes);
   }
+  public addRecipe(recipe: PreparedRecipe, createProduct: boolean = true): void {
+    const list = this.getRecipes();
+    list.unshift(recipe);
+    this.saveRecipes(list);
+
+    if (createProduct) {
+      const newProd: Product = {
+        id: recipe.productId || 'prod-fb-' + Date.now(),
+        barcode: '20' + Math.floor(10000000 + Math.random() * 90000000),
+        name: recipe.productName,
+        category: 'CheBien_FB',
+        unit: 'Phần',
+        costPrice: recipe.standardCost,
+        retailPrice: recipe.retailPrice,
+        wholesalePrice: Math.round(recipe.retailPrice * 0.9),
+        stockQuantity: 999,
+        minStock: 0,
+        isPrepared: true,
+      };
+      this.addProduct(newProd);
+    }
+  }
+  public updateRecipe(recipe: PreparedRecipe): void {
+    const list = this.getRecipes().map((r) => (r.id === recipe.id ? recipe : r));
+    this.saveRecipes(list);
+
+    const prodList = this.getProducts();
+    const prod = prodList.find((p) => p.id === recipe.productId || p.name === recipe.productName);
+    if (prod) {
+      prod.costPrice = recipe.standardCost;
+      prod.retailPrice = recipe.retailPrice;
+      this.saveProducts(prodList);
+    }
+  }
+  public deleteRecipe(id: string): void {
+    const list = this.getRecipes().filter((r) => r.id !== id);
+    this.saveRecipes(list);
+  }
 
   // --- Online Orders (Tab 3) ---
   public getOnlineOrders(): OnlineOrder[] {
@@ -680,6 +840,82 @@ class StorageService {
   }
   public saveOnlineOrders(orders: OnlineOrder[]): void {
     this.setItem('online_orders', orders);
+  }
+
+  // --- Warehouse & Inventory (Tab 4) ---
+  public getWarehouseItems(): WarehouseItem[] {
+    return this.getItem('warehouse_items', INITIAL_WAREHOUSE_ITEMS);
+  }
+  public saveWarehouseItems(items: WarehouseItem[]): void {
+    this.setItem('warehouse_items', items);
+  }
+  public addWarehouseItem(item: WarehouseItem): void {
+    const list = this.getWarehouseItems();
+    list.unshift(item);
+    this.saveWarehouseItems(list);
+  }
+  public updateWarehouseItem(item: WarehouseItem): void {
+    const list = this.getWarehouseItems().map((w) => (w.id === item.id ? item : w));
+    this.saveWarehouseItems(list);
+  }
+  public deleteWarehouseItem(id: string): void {
+    const list = this.getWarehouseItems().filter((w) => w.id !== id);
+    this.saveWarehouseItems(list);
+  }
+  public getWarehouseLocations(): WarehouseLocation[] {
+    return this.getItem('warehouse_locations', INITIAL_WAREHOUSE_LOCATIONS);
+  }
+  public saveWarehouseLocations(locations: WarehouseLocation[]): void {
+    this.setItem('warehouse_locations', locations);
+  }
+
+  // Xuất kho lên kệ bán lẻ: Trừ số lượng thùng/bao/can trong kho và cộng vào sản phẩm trên kệ
+  public transferWarehouseToShelf(warehouseItemId: string, bulkQuantity: number, targetShelfCode?: string): boolean {
+    const whList = this.getWarehouseItems();
+    const itemIndex = whList.findIndex((w) => w.id === warehouseItemId);
+    if (itemIndex === -1) return false;
+    const whItem = whList[itemIndex];
+    if (whItem.stockQuantity < bulkQuantity) return false;
+
+    whItem.stockQuantity -= bulkQuantity;
+    this.saveWarehouseItems(whList);
+
+    // Tìm sản phẩm trên kệ để cộng dồn tồn kho
+    const productList = this.getProducts();
+    const targetProd = productList.find((p) => p.id === whItem.linkedShelfProductId || p.name.includes(whItem.name.split('(')[0].trim()));
+    const unitsPerBulk = whItem.unitsPerBulk || 1;
+    const addedUnits = bulkQuantity * unitsPerBulk;
+
+    if (targetProd) {
+      targetProd.stockQuantity += addedUnits;
+      if (targetShelfCode) {
+        targetProd.shelfCode = targetShelfCode;
+      }
+      this.saveProducts(productList);
+    }
+
+    // Ghi log giao dịch xuất kho
+    const slipCode = `XK-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(10 + Math.random() * 90)}`;
+    const newTx: InventoryTransaction = {
+      id: 'inv-out-' + Date.now(),
+      slipCode,
+      type: 'OUT',
+      supplier: 'Xuất lên Kệ ' + (targetShelfCode || targetProd?.shelfCode || 'KE-A1-T1'),
+      totalCost: bulkQuantity * whItem.importPrice,
+      notes: `Xuất ${bulkQuantity} ${whItem.bulkUnit} (${addedUnits} ${whItem.packageSpec}) từ vị trí ${whItem.locationCode} ra kệ`,
+      items: [
+        {
+          productName: whItem.name,
+          unit: whItem.bulkUnit,
+          quantity: bulkQuantity,
+          costPrice: whItem.importPrice,
+          total: bulkQuantity * whItem.importPrice,
+        },
+      ],
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    this.addInventoryTransaction(newTx);
+    return true;
   }
 
   // --- Inventory Transactions (Tab 4) ---

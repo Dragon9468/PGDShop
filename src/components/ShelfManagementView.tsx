@@ -14,13 +14,14 @@ import {
   Sparkles,
   X,
   Package,
+  Lock,
+  Unlock,
+  ShieldCheck,
 } from 'lucide-react';
 
 const PRESET_IMAGES = [
   { label: 'Cà phê hạt S18', url: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=400&auto=format&fit=crop&q=80' },
-  { label: 'Cà phê sữa đá', url: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=80' },
-  { label: 'Trà đào cam sả', url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80' },
-  { label: 'Bánh mì pate', url: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&auto=format&fit=crop&q=80' },
+  { label: 'Cà phê hạt Cầu Đất', url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80' },
   { label: 'Sữa đặc hộp', url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&auto=format&fit=crop&q=80' },
   { label: 'Ly giấy Kraft', url: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=400&auto=format&fit=crop&q=80' },
   { label: 'Giấy in nhiệt K80', url: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=400&auto=format&fit=crop&q=80' },
@@ -34,6 +35,8 @@ export const ShelfManagementView: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchProductQuery, setSearchProductQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('TatCa');
+  // Chế độ Khóa an toàn: Mặc định khóa để ẩn nút sửa/xóa hàng, chống bấm nhầm
+  const [isLocked, setIsLocked] = useState(true);
 
   // Modal Kệ
   const [isAddShelfModalOpen, setIsAddShelfModalOpen] = useState(false);
@@ -170,7 +173,8 @@ export const ShelfManagementView: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
+  const shelfProducts = products.filter((p) => !p.isPrepared && p.category !== 'CheBien_FB');
+  const filteredProducts = shelfProducts.filter((p) => {
     const matchCat = selectedCategory === 'TatCa' || p.category === selectedCategory;
     const matchQuery =
       p.name.toLowerCase().includes(searchProductQuery.toLowerCase()) ||
@@ -180,33 +184,58 @@ export const ShelfManagementView: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Layers size={28} color="#38bdf8" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              1. QUẢN LÝ KỆ HÀNG & DANH MỤC ẢNH SẢN PHẨM TRỰC QUAN
+              1. QUẢN LÝ KỆ HÀNG (HÀNG BÁN LẺ TRƯNG BÀY TRÊN KỆ)
             </h1>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Quản lý sơ đồ kệ (Dãy, Tầng), sức chứa và thêm ảnh sản phẩm trực quan để bán trên POS & hiển thị màn hình khách.
+            Quản lý sơ đồ vị trí kệ (Dãy, Tầng), sức chứa và hàng bán lẻ trưng bày trên kệ. (Hàng chế biến F&B được quản lý riêng tại Mục 2).
           </p>
         </div>
 
-        {/* Nút thao tác theo tab */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {activeTab === 'products' ? (
-            <button className="btn btn-primary" onClick={handleOpenAddProduct}>
-              <Plus size={18} />
-              <span>Thêm Sản Phẩm Mới (Có Ảnh)</span>
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setIsAddShelfModalOpen(true)}>
-              <Plus size={18} />
-              <span>Thêm Kệ Hàng Mới</span>
-            </button>
+        {/* Cụm nút Thao tác & Nút Khóa / Mở khóa an toàn */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Nút Lock / Unlock */}
+          <button
+            onClick={() => setIsLocked(!isLocked)}
+            className="btn"
+            style={{
+              background: isLocked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.18)',
+              border: isLocked ? '1.5px solid #10b981' : '1.5px solid #ef4444',
+              color: isLocked ? '#10b981' : '#f87171',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.88rem',
+            }}
+            title={isLocked ? 'Đang Khóa: Ẩn các nút sửa và xóa hàng để chống bấm nhầm' : 'Đang Mở Khóa: Có thể chỉnh sửa và xóa hàng'}
+          >
+            {isLocked ? <Lock size={16} /> : <Unlock size={16} />}
+            <span>{isLocked ? '🔒 Đang Khóa Thao Tác (An Toàn)' : '🔓 Đã Mở Khóa (Cho Phép Sửa/Xóa)'}</span>
+          </button>
+
+          {!isLocked && (
+            activeTab === 'products' ? (
+              <button className="btn btn-primary" onClick={handleOpenAddProduct}>
+                <Plus size={18} />
+                <span>Thêm Hàng Lên Kệ (Có Ảnh)</span>
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => setIsAddShelfModalOpen(true)}>
+                <Plus size={18} />
+                <span>Thêm Kệ Hàng Mới</span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -230,7 +259,7 @@ export const ShelfManagementView: React.FC = () => {
           }}
         >
           <ImageIcon size={18} />
-          <span>Danh Mục & Ảnh Sản Phẩm ({products.length} Món)</span>
+          <span>Hàng Trưng Bày Trên Kệ ({shelfProducts.length} Món)</span>
         </button>
 
         <button
@@ -254,16 +283,16 @@ export const ShelfManagementView: React.FC = () => {
         </button>
       </div>
 
-      {/* NỘI DUNG TAB 1: DANH MỤC & ẢNH SẢN PHẨM TRỰC QUAN */}
+      {/* NỘI DUNG TAB 1: DANH MỤC HÀNG TRÊN KỆ (LƯỚI NGANG 5 Ô) */}
       {activeTab === 'products' && (
         <div>
-          {/* Thanh tìm kiếm & lọc category */}
+          {/* Thanh tìm kiếm & lọc category (Chỉ các loại hàng kệ, không trộn F&B) */}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: '240px' }}>
               <Search size={18} color="var(--text-secondary)" />
               <input
                 type="text"
-                placeholder="Tìm tên sản phẩm, mã barcode, vị trí kệ..."
+                placeholder="Tìm tên hàng trên kệ, mã barcode, vị trí KE-..."
                 value={searchProductQuery}
                 onChange={(e) => setSearchProductQuery(e.target.value)}
                 style={{ background: 'transparent', border: 'none', width: '100%', outline: 'none' }}
@@ -276,42 +305,48 @@ export const ShelfManagementView: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
-              {(['TatCa', 'TapHoa', 'CheBien_FB', 'BaoBi', 'VanPhongPham'] as ProductCategory[]).map((cat) => (
+              {(['TatCa', 'TapHoa', 'BaoBi', 'VanPhongPham'] as ProductCategory[]).map((cat) => (
                 <button
                   key={cat}
                   className={`cat-pill ${selectedCategory === cat ? 'active' : ''}`}
                   onClick={() => setSelectedCategory(cat)}
                   style={{ whiteSpace: 'nowrap' }}
                 >
-                  {cat === 'TatCa' && 'Tất Cả'}
-                  {cat === 'TapHoa' && '🛒 Tạp Hóa'}
-                  {cat === 'CheBien_FB' && '☕ Pha Chế'}
-                  {cat === 'BaoBi' && '📦 Bao Bì'}
-                  {cat === 'VanPhongPham' && '🧾 Vật Tư'}
+                  {cat === 'TatCa' && `Tất Cả Kệ (${shelfProducts.length})`}
+                  {cat === 'TapHoa' && '🛒 Tạp Hóa / Bánh Kẹo'}
+                  {cat === 'BaoBi' && '📦 Bao Bì / Ly Túi'}
+                  {cat === 'VanPhongPham' && '🧾 Vật Tư Tiêu Hao'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Lưới sản phẩm kèm ảnh trực quan */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '14px' }}>
+          {/* Lưới sản phẩm kệ ngang 5 ô */}
+          <div
+            className="shelf-grid-5"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+              gap: '12px',
+            }}
+          >
             {filteredProducts.map((p) => (
               <div
                 key={p.id}
                 className="glass-panel"
                 style={{
-                  padding: '12px',
+                  padding: '10px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                 }}
               >
                 {/* Ảnh sản phẩm */}
                 <div
                   style={{
                     width: '100%',
-                    height: '140px',
+                    height: '115px',
                     borderRadius: '8px',
                     overflow: 'hidden',
                     position: 'relative',
@@ -319,7 +354,7 @@ export const ShelfManagementView: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '10px',
+                    marginBottom: '8px',
                   }}
                 >
                   {p.imageUrl ? (
@@ -333,70 +368,87 @@ export const ShelfManagementView: React.FC = () => {
                     />
                   ) : (
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      <ImageIcon size={36} strokeWidth={1.5} />
-                      <div style={{ fontSize: '0.72rem', marginTop: '4px' }}>Chưa có ảnh</div>
+                      <ImageIcon size={30} strokeWidth={1.5} />
+                      <div style={{ fontSize: '0.7rem', marginTop: '2px' }}>Chưa có ảnh</div>
                     </div>
                   )}
 
-                  {p.isPrepared ? (
-                    <span className="product-tag fb">☕ Pha Chế</span>
-                  ) : p.shelfCode ? (
-                    <span className="product-tag shelf">📍 {p.shelfCode}</span>
-                  ) : null}
+                  {p.shelfCode && (
+                    <span className="product-tag shelf" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                      📍 {p.shelfCode}
+                    </span>
+                  )}
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', lineHeight: 1.3 }}>
+                  <div
+                    style={{
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: '4px',
+                      lineHeight: 1.3,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      minHeight: '2.4em',
+                    }}
+                    title={p.name}
+                  >
                     {p.name}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    <Barcode size={14} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    <Barcode size={13} />
                     <span style={{ fontFamily: 'var(--font-mono)' }}>{p.barcode}</span>
                     <span>• {p.unit}</span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                     <div>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Giá bán: </span>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
                         {new Intl.NumberFormat('vi-VN').format(p.retailPrice)}đ
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       Vốn: {new Intl.NumberFormat('vi-VN').format(p.costPrice)}đ
                     </div>
                   </div>
 
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '6px' }}>
-                    <span>Tồn: <b>{p.isPrepared ? 'Không giới hạn' : `${p.stockQuantity} ${p.unit}`}</b></span>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '6px' }}>
+                    <span>Tồn Kệ: <b style={{ color: p.stockQuantity <= p.minStock ? '#f87171' : 'var(--text-primary)' }}>{p.stockQuantity} {p.unit}</b></span>
                     <span>Sỉ: {new Intl.NumberFormat('vi-VN').format(p.wholesalePrice)}đ</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                  <button
-                    onClick={() => handleOpenEditProduct(p)}
-                    className="btn btn-secondary"
-                    style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem' }}
-                  >
-                    <Edit size={14} />
-                    <span>Sửa Ảnh / Giá</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProduct(p.id, p.name)}
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#f87171',
-                      padding: '6px 10px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                    title="Xóa sản phẩm"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {/* NÚT SỬA / XÓA SẢN PHẨM: ẨN KHI KHÓA, HIỆN KHI MỞ KHÓA */}
+                {!isLocked && (
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                    <button
+                      onClick={() => handleOpenEditProduct(p)}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem' }}
+                    >
+                      <Edit size={13} />
+                      <span>Sửa</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(p.id, p.name)}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#f87171',
+                        padding: '5px 8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                      }}
+                      title="Xóa sản phẩm"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -565,10 +617,9 @@ export const ShelfManagementView: React.FC = () => {
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value as ProductCategory })}
                     style={{ width: '100%', padding: '8px' }}
                   >
-                    <option value="TapHoa">Tạp Hóa</option>
-                    <option value="CheBien_FB">Chế Biến (F&B)</option>
-                    <option value="BaoBi">Bao Bì</option>
-                    <option value="VanPhongPham">Văn Phòng Phẩm</option>
+                    <option value="TapHoa">🛒 Tạp Hóa / Bánh Kẹo</option>
+                    <option value="BaoBi">📦 Bao Bì / Ly Túi</option>
+                    <option value="VanPhongPham">🧾 Văn Phòng Phẩm / Vật Tư</option>
                   </select>
                 </div>
 

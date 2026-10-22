@@ -32,6 +32,36 @@ export interface ShelfLocation {
   assignedProducts: string[];
 }
 
+export type WarehouseBulkUnit = 'Thùng' | 'Bao' | 'Kg' | 'Lít' | 'Can' | 'Két' | 'Cuộn' | 'Kiện';
+
+export interface WarehouseLocation {
+  id: string;
+  code: string; // VD: KHO-A1-T1, KHO-B1-T1, KHO-LANH-01
+  zone: string; // Khu A (Hàng khô), Khu B (Nguyên liệu pha chế), Khu C (Bao bì, vật tư)
+  tier: number;
+  capacity: number; // Sức chứa theo thùng / bao / can
+  currentCount: number;
+  status: 'ACTIVE' | 'FULL' | 'MAINTENANCE';
+  notes: string;
+}
+
+export interface WarehouseItem {
+  id: string;
+  sku: string; // Mã lưu kho (WH-CF-01)
+  name: string;
+  category: 'NguyenLieu_FB' | 'HangKho_DongGoi' | 'BaoBi' | 'VanPhongPham';
+  bulkUnit: WarehouseBulkUnit; // Thùng / Kg / Lít / Can / Bao...
+  packageSpec: string; // Quy cách: "Thùng 24 lon", "Bao 30kg hạt Robusta", "Can 5L siro", "Thùng 48 hộp"
+  importPrice: number; // Giá nhập sỉ (thùng/bao/lít/kg) - khác giá lẻ trên kệ
+  stockQuantity: number; // Số lượng tồn kho theo bulkUnit
+  minStock: number;
+  locationCode: string; // Vị trí kho (VD: KHO-A1-T1)
+  supplier: string;
+  linkedShelfProductId?: string; // Liên kết tới sản phẩm ngoài kệ để chuyển kho lên kệ
+  unitsPerBulk?: number; // Số đơn vị lẻ trong 1 đơn vị kho (VD: 1 thùng = 24 lon)
+  imageUrl?: string;
+}
+
 export interface RecipeIngredient {
   id: string;
   ingredientName: string;
