@@ -16,7 +16,11 @@ import {
   Smartphone,
   Globe,
   GitBranch,
+  Palette,
+  Sparkles,
 } from 'lucide-react';
+import { ThemePickerModal } from './ThemePickerModal';
+import { THEMES, CATEGORIES } from '../lib/themes';
 
 interface SettingsViewProps {
   settings: AppSettings;
@@ -28,6 +32,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
   const [savedAlert, setSavedAlert] = useState(false);
   const [testBarcodeInput, setTestBarcodeInput] = useState('');
   const [barcodeTestSuccess, setBarcodeTestSuccess] = useState<string | null>(null);
+
+  // Theme states
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [currentThemeId, setCurrentThemeId] = useState<string>(() => {
+    return localStorage.getItem('pgd_theme') || 'cyber-neon';
+  });
+  const [selectedCatTab, setSelectedCatTab] = useState<'Light' | 'Dark' | 'Gradient' | 'Classic'>('Gradient');
+
+  const handleApplyTheme = (themeId: string) => {
+    setCurrentThemeId(themeId);
+    localStorage.setItem('pgd_theme', themeId);
+    document.documentElement.setAttribute('data-theme', themeId);
+    soundService.playSuccessChime();
+  };
+
+  const activeThemeObj = THEMES.find((t) => t.id === currentThemeId) || THEMES[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +86,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800 }}>CẤU HÌNH HỆ THỐNG & KẾT NỐI ĐA NỀN TẢNG</h1>
           </div>
           <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
-            Thiết lập tài khoản ngân hàng VietQR, Supabase Realtime, Google Sheets Webhook, Loa Bluetooth và Thiết Bị Quầy.
+            Thiết lập Theme giao diện Ftel, tài khoản ngân hàng VietQR, Supabase Realtime, Google Sheets Webhook và Thiết Bị Quầy.
           </p>
         </div>
 
@@ -79,6 +99,127 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* 0. BỘ SƯU TẬP GIAO DIỆN (FTEL THEME VAULT - 40 THEMES) */}
+        <div className="glass-panel" style={{ padding: '20px', border: '1px solid rgba(118, 254, 40, 0.3)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)', fontSize: '1.15rem', fontWeight: 800 }}>
+              <Palette size={22} />
+              <span>Giao Diện & Bộ Sưu Tập Theme ({THEMES.length} Themes Ftel Multi-Agent)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsThemeModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                borderRadius: '12px',
+                background: 'var(--primary)',
+                color: 'var(--primary-foreground, #090d16)',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(118, 254, 40, 0.4)',
+                transition: 'all 0.2s',
+              }}
+            >
+              <Sparkles size={18} />
+              <span>MỞ VÒNG XOAY HÀNH TINH (ROTARY WHEEL)</span>
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.04)', padding: '14px 18px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Theme Đang Kích Hoạt:
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fff', marginTop: '2px' }}>
+                {activeThemeObj.name} <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginLeft: '8px' }}>({activeThemeObj.category} Planet)</span>
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '2px' }}>
+                {activeThemeObj.desc}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '9999px', backgroundColor: activeThemeObj.primary }} />
+                <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{activeThemeObj.primary}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '9999px', backgroundColor: activeThemeObj.secondary }} />
+                <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{activeThemeObj.secondary}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cụm Tabs chọn nhanh theo hành tinh */}
+          <div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCatTab(cat)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: selectedCatTab === cat ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                    color: selectedCatTab === cat ? '#090d16' : '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {cat === 'Light' && '☀️ '}
+                  {cat === 'Dark' && '🌙 '}
+                  {cat === 'Gradient' && '🌈 '}
+                  {cat === 'Classic' && '🏛️ '}
+                  {cat} Planet (10 Themes)
+                </button>
+              ))}
+            </div>
+
+            {/* Grid 10 Themes trong category */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+              {THEMES.filter((t) => t.category === selectedCatTab).map((t) => {
+                const isSelected = t.id === currentThemeId;
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => handleApplyTheme(t.id)}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '10px',
+                      background: isSelected ? 'rgba(118, 254, 40, 0.15)' : 'rgba(255,255,255,0.03)',
+                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: isSelected ? 'var(--primary)' : '#fff' }}>
+                        {t.name}
+                      </span>
+                      <div style={{ display: 'flex', gap: '3px' }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: t.primary }} />
+                        <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: t.secondary }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.3, height: '32px', overflow: 'hidden' }}>
+                      {t.desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* 1. THÔNG TIN CỬA HÀNG & TÀI KHOẢN NGÂN HÀNG VIETQR */}
         <div className="glass-panel" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: '#38bdf8', fontSize: '1.1rem', fontWeight: 700 }}>
@@ -306,6 +447,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           </button>
         </div>
       </form>
+
+      {/* Modal Vòng Xoay Hành Tinh Theme */}
+      <ThemePickerModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentTheme={currentThemeId}
+        onSelectTheme={handleApplyTheme}
+      />
     </div>
   );
 };

@@ -14,7 +14,6 @@ import {
   Volume2,
   VolumeX,
   ExternalLink,
-  Palette,
 } from 'lucide-react';
 import { dualScreenSync } from '../services/dualScreenSync';
 import { soundService } from '../services/soundService';
@@ -39,16 +38,6 @@ interface NavbarProps {
   onToggleAudio: () => void;
 }
 
-export const FTEL_THEMES = [
-  { id: 'cyber-neon', name: 'Cyber Neon (Mặc định Ftel)', color: '#76fe28' },
-  { id: 'sunset-glow', name: 'Sunset Glow (FPT Cam)', color: '#F58220' },
-  { id: 'ocean-deep', name: 'Ocean Deep (Xanh Biển)', color: '#06b6d4' },
-  { id: 'aurora-night', name: 'Aurora Night (Bắc Cực)', color: '#84cc16' },
-  { id: 'matrix-green', name: 'Matrix Green (Xanh Ma Trận)', color: '#10b981' },
-  { id: 'amber-dark', name: 'Amber Dark (Đen Tối Giản)', color: '#ff9933' },
-  { id: 'dracula-violet', name: 'Dracula Violet (Tím)', color: '#a855f7' },
-];
-
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onTabChange,
@@ -56,12 +45,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleAudio,
 }) => {
   const [time, setTime] = useState<string>('');
-  const [currentTheme, setCurrentTheme] = useState<string>('cyber-neon');
 
   useEffect(() => {
     // Đọc theme đã lưu
     const saved = localStorage.getItem('pgd_theme') || 'cyber-neon';
-    setCurrentTheme(saved);
     document.documentElement.setAttribute('data-theme', saved);
 
     const timer = setInterval(() => {
@@ -76,12 +63,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const handleThemeChange = (themeId: string) => {
-    setCurrentTheme(themeId);
-    localStorage.setItem('pgd_theme', themeId);
-    document.documentElement.setAttribute('data-theme', themeId);
-  };
 
   const handleOpenDualScreen = () => {
     dualScreenSync.openCustomerDisplayWindow();
@@ -200,31 +181,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       </nav>
 
       <div className="nav-actions">
-        {/* Bộ chọn Theme Ftel Multi-Agent */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Palette size={15} color="var(--primary)" />
-          <select
-            value={currentTheme}
-            onChange={(e) => handleThemeChange(e.target.value)}
-            style={{
-              background: 'rgba(0,0,0,0.5)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-primary)',
-              fontSize: '0.78rem',
-              padding: '3px 6px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-            }}
-            title="Đổi giao diện Theme từ Ftel Multi-Agent"
-          >
-            {FTEL_THEMES.map((t) => (
-              <option key={t.id} value={t.id} style={{ background: '#090d16', color: '#fff' }}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Nút mở màn hình khách hàng trên màn hình phụ (Màn 2) */}
         <button
           className="btn btn-dual-screen"

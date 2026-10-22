@@ -4,9 +4,12 @@
 
 import { CartItem } from '../types';
 
+export type CheckoutStatus = 'SCANNING' | 'AWAITING_PAYMENT' | 'COMPLETED';
+
 export interface DualScreenMessage {
   type: 
     | 'SYNC_CART' 
+    | 'SET_CHECKOUT_STATUS'
     | 'PAYMENT_COMPLETED' 
     | 'CLEAR_CART' 
     | 'CUSTOMER_SCANNED_BARCODE'
@@ -21,6 +24,7 @@ export interface DualScreenMessage {
     barcode?: string;
     paymentMethod?: 'CASH' | 'VIETQR';
     paidAmount?: number;
+    checkoutStatus?: CheckoutStatus;
   };
 }
 
@@ -87,14 +91,15 @@ class DualScreenSyncService {
   }
 
   /**
-   * Đồng bộ giỏ hàng từ màn hình thu ngân sang màn hình khách
+   * Đồng bộ giỏ hàng và trạng thái thanh toán từ màn hình thu ngân sang màn hình khách
    */
   public syncCartToCustomerDisplay(
     items: CartItem[],
     totalAmount: number,
     discountAmount: number,
     finalAmount: number,
-    orderCode: string
+    orderCode: string,
+    checkoutStatus: CheckoutStatus = 'SCANNING'
   ) {
     this.broadcast({
       type: 'SYNC_CART',
@@ -104,6 +109,20 @@ class DualScreenSyncService {
         discountAmount,
         finalAmount,
         orderCode,
+        checkoutStatus,
+      },
+    });
+  }
+
+  /**
+   * Cập nhật trạng thái sinh mã QR thanh toán
+   */
+  public setCheckoutStatus(checkoutStatus: CheckoutStatus, finalAmount: number) {
+    this.broadcast({
+      type: 'SET_CHECKOUT_STATUS',
+      payload: {
+        checkoutStatus,
+        finalAmount,
       },
     });
   }
@@ -130,6 +149,7 @@ class DualScreenSyncService {
         paymentMethod,
         paidAmount,
         orderCode,
+        checkoutStatus: 'COMPLETED',
       },
     });
   }
@@ -140,6 +160,9 @@ class DualScreenSyncService {
   public clearCart() {
     this.broadcast({
       type: 'CLEAR_CART',
+      payload: {
+        checkoutStatus: 'SCANNING',
+      },
     });
   }
 
@@ -149,7 +172,7 @@ class DualScreenSyncService {
   public openCustomerDisplayWindow() {
     if (typeof window === 'undefined') return;
     const url = `${window.location.origin}/#/customer-display`;
-    // Mở popup với kích thước chuẩn 1024x768 hoặc toàn màn hình
+    // Mở popup với kích thước chuẩn 1280x800 hoặc toàn màn hình
     const features = 'menubar=no,location=no,resizable=yes,scrollbars=yes,status=no,width=1280,height=800';
     const newWindow = window.open(url, 'PGDShopCustomerDisplay', features);
     if (newWindow) {

@@ -17,9 +17,10 @@ import {
   X,
   CreditCard,
   QrCode,
+  Check,
 } from 'lucide-react';
 import { soundService } from '../services/soundService';
-import { dualScreenSync } from '../services/dualScreenSync';
+import { dualScreenSync, CheckoutStatus } from '../services/dualScreenSync';
 import { printService } from '../services/printService';
 import { storageService } from '../services/storageService';
 import confetti from 'canvas-confetti';
@@ -35,6 +36,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('TatCa');
   const [discountAmount, setDiscountAmount] = useState(0);
   const [isBarcodeStickerModalOpen, setIsBarcodeStickerModalOpen] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>('SCANNING');
+  const [lastScannedProductId, setLastScannedProductId] = useState<string | null>(null);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +52,9 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       } else if (msg.type === 'CLEAR_CART') {
         setCart([]);
         setDiscountAmount(0);
+        setCheckoutStatus('SCANNING');
+      } else if (msg.type === 'SET_CHECKOUT_STATUS' && msg.payload?.checkoutStatus) {
+        setCheckoutStatus(msg.payload.checkoutStatus);
       }
     });
 
@@ -66,9 +72,10 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       totalAmount,
       discountAmount,
       finalAmount,
-      ''
+      '',
+      checkoutStatus
     );
-  }, [cart, totalAmount, discountAmount, finalAmount]);
+  }, [cart, totalAmount, discountAmount, finalAmount, checkoutStatus]);
 
   // Xử lý quét barcode từ súng quét USB
   const handleScanBarcode = (barcode: string) => {
@@ -77,18 +84,33 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
     // 1. Kiểm tra nếu quét mã tiện ích "THANHTOAN"
     if (cleanCode === 'THANHTOAN' || cleanCode === 'CHECKOUT') {
-      if (cart.length > 0 && finalAmount > 0) {
+      if (cart.length === 0 || finalAmount <= 0) {
+        soundService.speakVietnamese('Giỏ hàng trống. Vui lòng quét món hàng trước.');
+        setSearchQuery('');
+        return;
+      }
+
+      // Nếu đang quét dở -> Chuyển sang sinh QR động
+      if (checkoutStatus === 'SCANNING') {
+        setCheckoutStatus('AWAITING_PAYMENT');
+        dualScreenSync.setCheckoutStatus('AWAITING_PAYMENT', finalAmount);
+        soundService.playSuccessChime();
+        soundService.speakVietnamese(
+          `Tổng tiền là ${finalAmount.toLocaleString('vi-VN')} đồng. Mời quý khách quét mã VietQR để thanh toán.`
+        );
+      } 
+      // Nếu đã sinh QR rồi và quét THANHTOAN lần nữa -> Xác nhận đã nhận tiền
+      else if (checkoutStatus === 'AWAITING_PAYMENT') {
         handleTransferSuccessAuto();
       }
+
       setSearchQuery('');
       return;
     }
 
-    // 2. Kiểm tra nếu quét mã tiện ích "XOA"
-    if (cleanCode === 'XOA' || cleanCode === 'CLEAR' || cleanCode === 'HUY') {
-      soundService.playBarcodeBeep();
-      soundService.speakVietnamese('Đã xóa giỏ hàng');
-      clearCart();
+    // 2. Kiểm tra nếu quét mã tiện ích "XOA" -> HOÀN TÁC 1 SỐ LƯỢNG MÓN VỪA QUÉT
+    if (cleanCode === 'XOA' || cleanCode === 'CLEAR' || cleanCode === 'HUY' || cleanCode === 'UNDO') {
+      handleUndoLastItem();
       setSearchQuery('');
       return;
     }
@@ -107,8 +129,57 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     }
   };
 
+  // Hoàn tác 1 số lượng món vừa quét
+  const handleUndoLastItem = () => {
+    if (cart.length === 0) {
+      soundService.speakVietnamese('Giỏ hàng trống, không có món để hoàn tác.');
+      return;
+    }
+
+    let targetIndex = -1;
+    if (lastScannedProductId) {
+      targetIndex = cart.findIndex((i) => i.product.id === lastScannedProductId);
+    }
+    if (targetIndex === -1) {
+      targetIndex = cart.length - 1;
+    }
+
+    const targetItem = cart[targetIndex];
+    if (!targetItem) return;
+
+    soundService.playBarcodeBeep();
+    setCart((prevCart) => {
+      const updated = [...prevCart];
+      if (targetItem.quantity > 1) {
+        const newQty = targetItem.quantity - 1;
+        updated[targetIndex] = {
+          ...targetItem,
+          quantity: newQty,
+          subtotal: newQty * targetItem.product.retailPrice,
+        };
+        soundService.speakVietnamese(
+          `Đã hoàn tác 1 ${targetItem.product.name}. Còn lại ${newQty} món.`
+        );
+      } else {
+        updated.splice(targetIndex, 1);
+        soundService.speakVietnamese(`Đã xóa món ${targetItem.product.name} khỏi giỏ.`);
+      }
+      return updated;
+    });
+
+    // Nếu đang ở màn hình chờ thanh toán, chuyển về scanning để cập nhật lại
+    if (checkoutStatus === 'AWAITING_PAYMENT') {
+      setCheckoutStatus('SCANNING');
+    }
+  };
+
   const addToCart = (product: Product) => {
     soundService.playBarcodeBeep();
+    setLastScannedProductId(product.id);
+    if (checkoutStatus === 'AWAITING_PAYMENT') {
+      setCheckoutStatus('SCANNING');
+    }
+
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex((item) => item.product.id === product.id);
       if (existingIndex >= 0) {
@@ -159,6 +230,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
   const clearCart = () => {
     setCart([]);
     setDiscountAmount(0);
+    setCheckoutStatus('SCANNING');
+    setLastScannedProductId(null);
     dualScreenSync.clearCart();
     barcodeInputRef.current?.focus();
   };
@@ -482,8 +555,72 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
             </span>
           </div>
 
-          {/* CHỈ CÒN DUY NHẤT NÚT TIỀN MẶT THEO YÊU CẦU */}
-          <div className="checkout-actions">
+          {/* NÚT THANH TOÁN THU NGÂN */}
+          <div className="checkout-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {checkoutStatus === 'SCANNING' ? (
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  if (cart.length === 0 || finalAmount <= 0) return;
+                  setCheckoutStatus('AWAITING_PAYMENT');
+                  dualScreenSync.setCheckoutStatus('AWAITING_PAYMENT', finalAmount);
+                  soundService.playSuccessChime();
+                  soundService.speakVietnamese(
+                    `Tổng tiền là ${finalAmount.toLocaleString('vi-VN')} đồng. Mời quý khách quét mã VietQR để thanh toán.`
+                  );
+                }}
+                disabled={cart.length === 0}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+                title="Khách quét xong đồ -> Bấm để sinh mã VietQR động đúng số tiền"
+              >
+                <QrCode size={18} />
+                <span>SINH VIETQR ĐỘNG (THANHTOAN)</span>
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleTransferSuccessAuto}
+                  disabled={cart.length === 0}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 0 15px var(--primary)',
+                  }}
+                  title="Xác nhận tiền đã vào tài khoản và hoàn tất đơn"
+                >
+                  <Check size={18} />
+                  <span>XÁC NHẬN ĐÃ NHẬN TIỀN</span>
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setCheckoutStatus('SCANNING');
+                    dualScreenSync.setCheckoutStatus('SCANNING', finalAmount);
+                  }}
+                  style={{ padding: '0 12px', fontSize: '0.8rem' }}
+                  title="Quay lại thêm/sửa món"
+                >
+                  Quét thêm
+                </button>
+              </div>
+            )}
+
             <button
               className="btn btn-cash"
               onClick={handleCashPayment}
@@ -496,7 +633,13 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
           </div>
 
           <div style={{ marginTop: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-            💡 Khách quét mã VietQR tự động trên màn hình ngoài. Quét mã <b>THANHTOAN</b> để hoàn tất.
+            {checkoutStatus === 'SCANNING' ? (
+              <>💡 Quét đồ xong → Quét <b>THANHTOAN</b> để sinh QR. Quét <b>XOA</b> để hoàn tác 1 món.</>
+            ) : (
+              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                ⚡ Đang chờ khách quét VietQR trên màn ngoài. Quét lại <b>THANHTOAN</b> khi tiền về!
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -512,7 +655,10 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
             <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '12px' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#059669', marginBottom: '4px' }}>
-                1. MÃ XÁC NHẬN THANH TOÁN
+                1. MÃ THANH TOÁN / SINH VIETQR ĐỘNG
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
+                Lần 1: Sinh mã VietQR đúng số tiền. Lần 2: Xác nhận hoàn tất đơn.
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
                 |||| | ||||| ||| |||
@@ -524,7 +670,10 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
             <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '10px', marginBottom: '16px' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#dc2626', marginBottom: '4px' }}>
-                2. MÃ HỦY / XÓA GIỎ HÀNG
+                2. MÃ HOÀN TÁC / GIẢM 1 MÓN LỠ QUÉT
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>
+                Quét để giảm 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần).
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '2rem', letterSpacing: '4px', fontWeight: 800 }}>
                 ||| |||| | ||| ||||
