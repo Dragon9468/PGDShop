@@ -20,11 +20,17 @@ export interface Product {
   imageUrl?: string;
 }
 
+// Loại thiết bị / giá trưng bày bán lẻ:
+// KE: Kệ hàng, TL: Tủ lạnh, TM: Tủ mát, MO: Pegboard móc treo, RO: Rổ trái cây/rau củ, NC: Máy bán nước tự động
+export type RetailDisplayType = 'KE' | 'TL' | 'TM' | 'MO' | 'RO' | 'NC';
+
 export interface ShelfLocation {
   id: string;
-  code: string; // VD: KE-A1-T1
-  aisle: string; // Dãy A, B
+  code: string; // VD: KE01-T1A, KE01-T1, TM01-T1A, TL01-T1, MO01-T1A, RO01-A, NC01-T1A
+  displayType?: RetailDisplayType; // KE, TL, TM, MO, RO, NC
+  displayNumber?: string; // 01, 02...
   tier: number; // Tầng 1, 2, 3
+  slot?: string; // Ô A, B, C... (nếu chia ô trên cùng tầng)
   capacity: number;
   currentCount: number;
   status: 'ACTIVE' | 'FULL' | 'MAINTENANCE';
@@ -33,10 +39,14 @@ export interface ShelfLocation {
 }
 
 export type WarehouseBulkUnit = 'Thùng' | 'Bao' | 'Kg' | 'Lít' | 'Can' | 'Két' | 'Cuộn' | 'Kiện';
+export type WarehouseRackType = 'KS' | 'KL' | 'PL'; // KS: Kệ sắt, KL: Kho lạnh, PL: Pallet
 
 export interface WarehouseLocation {
   id: string;
-  code: string; // VD: KHO-A1-T1, KHO-B1-T1, KHO-LANH-01
+  code: string; // VD: KHO01-KS01, KHO01-KS02, KHO01-KL01
+  warehouseNumber?: string; // 01, 02...
+  rackType?: WarehouseRackType; // KS, KL, PL
+  rackNumber?: string; // 01, 02...
   zone: string; // Khu A (Hàng khô), Khu B (Nguyên liệu pha chế), Khu C (Bao bì, vật tư)
   tier: number;
   capacity: number; // Sức chứa theo thùng / bao / can

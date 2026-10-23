@@ -220,6 +220,27 @@ export const PreparedProductsView: React.FC = () => {
         </button>
       </div>
 
+      {/* THÔNG BÁO QUY CHUẨN VỊ TRÍ CHO HÀNG CHẾ BIẾN */}
+      <div
+        className="glass-panel"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 18px',
+          marginBottom: '20px',
+          background: 'rgba(245, 158, 11, 0.08)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '10px',
+        }}
+      >
+        <div style={{ fontSize: '1.4rem' }}>📍</div>
+        <div style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <strong style={{ color: '#f59e0b' }}>Quy Chuẩn Mã Vị Trí:</strong> Món chế biến/pha chế tại quầy{' '}
+          <strong style={{ color: 'var(--text-primary)' }}>không gán mã vị trí kệ/kho</strong> vì được pha chế &amp; bán trực tiếp tại chỗ cho khách khi gọi món. Nguyên liệu đầu vào (cà phê hạt, sữa đặc, siro, ly nắp...) được lưu tại kho <span style={{ color: '#38bdf8', fontWeight: 600 }}>KHO01-KS01</span> hoặc tủ mát <span style={{ color: '#38bdf8', fontWeight: 600 }}>TM01-T1A</span>.
+        </div>
+      </div>
+
       {/* GIAO DIỆN CHIA 2 CỘT: DANH SÁCH MENU MÓN <-> CHI TIẾT ĐỊNH LƯỢNG (BOM) */}
       <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '20px' }}>
         {/* CỘT TRÁI: DANH SÁCH CÁC MÓN CHẾ BIẾN TẠI QUẦY */}

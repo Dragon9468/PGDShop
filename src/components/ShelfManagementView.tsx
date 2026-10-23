@@ -19,6 +19,13 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
+import { RetailDisplayType } from '../types';
+import {
+  DISPLAY_TYPES,
+  explainShelfCode,
+  generateShelfCode,
+} from '../services/locationService';
+
 const PRESET_IMAGES = [
   { label: 'Cà phê hạt S18', url: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=400&auto=format&fit=crop&q=80' },
   { label: 'Cà phê hạt Cầu Đất', url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80' },
@@ -38,18 +45,18 @@ export const ShelfManagementView: React.FC = () => {
   // Chế độ Khóa an toàn: Mặc định khóa để ẩn nút sửa/xóa hàng, chống bấm nhầm
   const [isLocked, setIsLocked] = useState(true);
 
-  // Modal Kệ
+  // Modal Thêm Kệ Mới - Tự động sinh mã chuẩn theo quy định: KE01-T1A, KE01-T1, TL, TM, MO, RO, NC
   const [isAddShelfModalOpen, setIsAddShelfModalOpen] = useState(false);
-  const [newShelf, setNewShelf] = useState<Partial<ShelfLocation>>({
-    code: 'KE-C1-T1',
-    aisle: 'C',
-    tier: 1,
-    capacity: 50,
-    currentCount: 0,
-    status: 'ACTIVE',
-    notes: 'Kệ trưng bày hàng gia dụng mới',
-    assignedProducts: [],
-  });
+  const [shelfFormType, setShelfFormType] = useState<RetailDisplayType>('KE');
+  const [shelfFormNumber, setShelfFormNumber] = useState('01');
+  const [shelfFormTier, setShelfFormTier] = useState<number>(1);
+  const [shelfFormSlot, setShelfFormSlot] = useState('A');
+  const [shelfFormCapacity, setShelfFormCapacity] = useState(35);
+  const [shelfFormNotes, setShelfFormNotes] = useState('');
+
+  // Sinh mã & diễn giải theo thời gian thực
+  const previewShelfCode = generateShelfCode(shelfFormType, shelfFormNumber, shelfFormTier, shelfFormSlot);
+  const previewShelfDesc = explainShelfCode(previewShelfCode);
 
   // Modal Sản Phẩm Kèm Ảnh
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -64,7 +71,7 @@ export const ShelfManagementView: React.FC = () => {
     wholesalePrice: 28000,
     stockQuantity: 50,
     minStock: 10,
-    shelfCode: 'KE-A1-T1',
+    shelfCode: 'KE01-T1A',
     isPrepared: false,
     imageUrl: '',
   });
@@ -76,24 +83,28 @@ export const ShelfManagementView: React.FC = () => {
 
   const handleAddShelf = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newShelf.code) return;
+    const finalCode = previewShelfCode;
+    if (!finalCode) return;
 
     const shelfToAdd: ShelfLocation = {
       id: 'shelf-' + Date.now(),
-      code: newShelf.code.toUpperCase(),
-      aisle: newShelf.aisle || 'A',
-      tier: Number(newShelf.tier) || 1,
-      capacity: Number(newShelf.capacity) || 50,
-      currentCount: Number(newShelf.currentCount) || 0,
-      status: (newShelf.status as 'ACTIVE' | 'FULL' | 'MAINTENANCE') || 'ACTIVE',
-      notes: newShelf.notes || '',
-      assignedProducts: newShelf.assignedProducts || [],
+      code: finalCode,
+      displayType: shelfFormType,
+      displayNumber: shelfFormNumber,
+      tier: shelfFormType === 'RO' ? 1 : Number(shelfFormTier) || 1,
+      slot: shelfFormSlot ? shelfFormSlot.trim().toUpperCase() : undefined,
+      capacity: Number(shelfFormCapacity) || 35,
+      currentCount: 0,
+      status: 'ACTIVE',
+      notes: shelfFormNotes || previewShelfDesc,
+      assignedProducts: [],
     };
 
     const updated = [...shelves, shelfToAdd];
     setShelves(updated);
     storageService.saveShelves(updated);
     setIsAddShelfModalOpen(false);
+    setShelfFormNotes('');
   };
 
   const handleOpenAddProduct = () => {
@@ -108,7 +119,7 @@ export const ShelfManagementView: React.FC = () => {
       wholesalePrice: 28000,
       stockQuantity: 50,
       minStock: 10,
-      shelfCode: shelves[0]?.code || 'KE-A1-T1',
+      shelfCode: shelves[0]?.code || 'KE01-T1A',
       isPrepared: false,
       imageUrl: '',
     });
@@ -240,6 +251,35 @@ export const ShelfManagementView: React.FC = () => {
         </div>
       </div>
 
+      {/* THANH THÔNG TIN QUY CHUẨN MÃ VỊ TRÍ THEO QUY ĐỊNH */}
+      <div
+        style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          marginBottom: '18px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          fontSize: '0.86rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800 }}>
+          <MapPin size={18} />
+          <span>QUY CHUẨN MÃ VỊ TRÍ TRƯNG BÀY BÁN LẺ (ĐÃ CẬP NHẬT)</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+          <span><b>🗄️ KE:</b> Kệ hàng (VD: <code style={{ color: '#38bdf8' }}>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code style={{ color: '#38bdf8' }}>KE01-T1</code>)</span>
+          <span>• <b>🧊 TL:</b> Tủ lạnh đông (VD: <code style={{ color: '#38bdf8' }}>TL01-T1</code>)</span>
+          <span>• <b>🥛 TM:</b> Tủ mát (VD: <code style={{ color: '#38bdf8' }}>TM01-T1A</code>)</span>
+          <span>• <b>🪝 MO:</b> Pegboard móc treo (VD: <code style={{ color: '#38bdf8' }}>MO01-T1A</code>)</span>
+          <span>• <b>🧺 RO:</b> Rổ trái cây rau củ (VD: <code style={{ color: '#38bdf8' }}>RO01-A</code>)</span>
+          <span>• <b>🥤 NC:</b> Máy bán nước tự động (VD: <code style={{ color: '#38bdf8' }}>NC01-T1A</code>)</span>
+          <span style={{ color: '#f59e0b', fontWeight: 700 }}>• ☕ Chế biến (F&B): Bán tại quầy, không có mã vị trí</span>
+        </div>
+      </div>
+
       {/* Cụm Tab Chuyển Đổi Kệ Hàng <-> Danh Mục Ảnh Sản Phẩm */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
         <button
@@ -279,7 +319,7 @@ export const ShelfManagementView: React.FC = () => {
           }}
         >
           <MapPin size={18} />
-          <span>Sơ Đồ Kệ & Sức Chứa ({shelves.length} Vị Trí)</span>
+          <span>Sơ Đồ Vị Trí Thiết Bị / Kệ ({shelves.length} Vị Trí)</span>
         </button>
       </div>
 
@@ -373,9 +413,22 @@ export const ShelfManagementView: React.FC = () => {
                     </div>
                   )}
 
-                  {p.shelfCode && (
-                    <span className="product-tag shelf" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                  {p.shelfCode && !p.isPrepared && (
+                    <span
+                      className="product-tag shelf"
+                      style={{ fontSize: '0.68rem', padding: '2px 6px', cursor: 'help' }}
+                      title={explainShelfCode(p.shelfCode)}
+                    >
                       📍 {p.shelfCode}
+                    </span>
+                  )}
+                  {p.isPrepared && (
+                    <span
+                      className="product-tag"
+                      style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(245, 158, 11, 0.9)', color: '#000', fontWeight: 700 }}
+                      title="Món chế biến tại quầy - Bán tại chỗ không qua kệ"
+                    >
+                      ☕ Chế Biến Tại Chỗ
                     </span>
                   )}
                 </div>
@@ -398,6 +451,18 @@ export const ShelfManagementView: React.FC = () => {
                   >
                     {p.name}
                   </div>
+
+                  {p.shelfCode && !p.isPrepared && (
+                    <div style={{ fontSize: '0.72rem', color: '#38bdf8', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={11} />
+                      <span style={{ fontWeight: 600 }}>{explainShelfCode(p.shelfCode)}</span>
+                    </div>
+                  )}
+                  {p.isPrepared && (
+                    <div style={{ fontSize: '0.72rem', color: '#f59e0b', marginBottom: '4px', fontStyle: 'italic' }}>
+                      (Bán trực tiếp - Không gán vị trí kệ)
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                     <Barcode size={13} />
@@ -462,22 +527,32 @@ export const ShelfManagementView: React.FC = () => {
             const fillPercentage = Math.min(100, Math.round((shelf.currentCount / (shelf.capacity || 1)) * 100));
             const isNearlyFull = fillPercentage >= 85;
 
+            const typeKey = (shelf.displayType || shelf.code.slice(0, 2)) as RetailDisplayType;
+            const typeInfo = DISPLAY_TYPES[typeKey];
+
             return (
               <div key={shelf.id} className="glass-panel" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <MapPin size={20} color="#38bdf8" />
-                    <span style={{ fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                      {shelf.code}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.6rem' }}>
+                      {typeInfo?.icon || '🗄️'}
                     </span>
+                    <div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                        {shelf.code}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                        {explainShelfCode(shelf.code)}
+                      </div>
+                    </div>
                   </div>
                   <span className={`badge ${shelf.status === 'ACTIVE' ? (isNearlyFull ? 'badge-warning' : 'badge-success') : 'badge-danger'}`}>
                     {shelf.status === 'ACTIVE' ? (isNearlyFull ? 'Gần Đầy' : 'Đang Dùng') : 'Bảo Trì'}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                  <div><b>Vị trí:</b> Dãy {shelf.aisle} - Tầng {shelf.tier}</div>
+                <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: '8px' }}>
+                  <div><b>Vị trí chi tiết:</b> {explainShelfCode(shelf.code)}</div>
                   <div><b>Sức chứa:</b> {shelf.currentCount} / {shelf.capacity} món ({fillPercentage}%)</div>
                 </div>
 
@@ -624,16 +699,16 @@ export const ShelfManagementView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Vị Trí Kệ:</label>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Vị Trí Kệ Trưng Bày:</label>
                   <select
                     value={productForm.shelfCode || ''}
                     onChange={(e) => setProductForm({ ...productForm, shelfCode: e.target.value })}
                     style={{ width: '100%', padding: '8px' }}
                   >
-                    <option value="">(Chưa gán kệ)</option>
+                    <option value="">(Chưa gán vị trí)</option>
                     {shelves.map((s) => (
                       <option key={s.id} value={s.code}>
-                        {s.code} (Dãy {s.aisle})
+                        {s.code} ({explainShelfCode(s.code)})
                       </option>
                     ))}
                   </select>
@@ -717,78 +792,170 @@ export const ShelfManagementView: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL THÊM KỆ MỚI */}
+      {/* MODAL THÊM KỆ / THIẾT BỊ MỚI - TỰ ĐỘNG SINH MÃ CHUẨN THEO QUY ĐỊNH */}
       {isAddShelfModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 style={{ marginBottom: '16px', fontSize: '1.3rem', color: 'var(--text-primary)' }}>Thêm Vị Trí Kệ Mới</h2>
+          <div className="modal-content" style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={22} color="#38bdf8" />
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Thêm Vị Trí Thiết Bị / Kệ Trưng Bày Mới
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsAddShelfModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
             <form onSubmit={handleAddShelf} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Chọn Loại Thiết Bị Trưng Bày */}
               <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Mã Kệ (VD: KE-A2-T3):</label>
-                <input
-                  type="text"
-                  required
-                  value={newShelf.code || ''}
-                  onChange={(e) => setNewShelf({ ...newShelf, code: e.target.value })}
-                  style={{ width: '100%', padding: '8px' }}
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Dãy Kệ (A, B, C):</label>
-                  <input
-                    type="text"
-                    value={newShelf.aisle || ''}
-                    onChange={(e) => setNewShelf({ ...newShelf, aisle: e.target.value })}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Tầng (1, 2, 3...):</label>
-                  <input
-                    type="number"
-                    value={newShelf.tier || 1}
-                    onChange={(e) => setNewShelf({ ...newShelf, tier: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Sức chứa tối đa (món):</label>
-                  <input
-                    type="number"
-                    value={newShelf.capacity || 50}
-                    onChange={(e) => setNewShelf({ ...newShelf, capacity: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số lượng hiện có:</label>
-                  <input
-                    type="number"
-                    value={newShelf.currentCount || 0}
-                    onChange={(e) => setNewShelf({ ...newShelf, currentCount: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ghi chú đặc điểm vị trí:</label>
-                <textarea
-                  rows={2}
-                  value={newShelf.notes || ''}
-                  onChange={(e) => setNewShelf({ ...newShelf, notes: e.target.value })}
-                  style={{ width: '100%', padding: '8px' }}
-                />
+                <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Loại Thiết Bị / Giá Trưng Bày:
+                </label>
+                <select
+                  value={shelfFormType}
+                  onChange={(e) => setShelfFormType(e.target.value as RetailDisplayType)}
+                  style={{ width: '100%', padding: '9px', fontWeight: 700 }}
+                >
+                  {(Object.keys(DISPLAY_TYPES) as RetailDisplayType[]).map((key) => {
+                    const info = DISPLAY_TYPES[key];
+                    return (
+                      <option key={key} value={key}>
+                        {info.icon} [{key}] {info.name} - {info.shortDesc}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+              {/* Các thông số: Số thứ tự, Tầng, Ô */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    Số Thiết Bị (01, 02...):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={shelfFormNumber}
+                    onChange={(e) => setShelfFormNumber(e.target.value)}
+                    placeholder="VD: 01"
+                    style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+
+                {shelfFormType !== 'RO' ? (
+                  <div>
+                    <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Tầng (1, 2, 3...):
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={shelfFormTier}
+                      onChange={(e) => setShelfFormTier(Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px' }}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      Tầng (Không áp dụng):
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value="Rổ đơn"
+                      style={{ width: '100%', padding: '8px', opacity: 0.5 }}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    Ô (A, B, C... hoặc Trống):
+                  </label>
+                  <input
+                    type="text"
+                    value={shelfFormSlot}
+                    onChange={(e) => setShelfFormSlot(e.target.value.toUpperCase())}
+                    placeholder="VD: A (hoặc để trống)"
+                    style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                💡 Nếu hàng chiếm ít: 1 tầng có nhiều sản phẩm chia các ô (A, B, C...). Nếu hàng chiếm nhiều: để trống ô để setup full tầng (chỉ cần {shelfFormType}{shelfFormNumber.padStart(2, '0')}-T{shelfFormTier}).
+              </div>
+
+              {/* BẢNG PREVIEW MÃ & DIỄN GIẢI THEO QUY CHUẨN */}
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                }}
+              >
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  MÃ VỊ TRÍ TỰ ĐỘNG SINH THEO QUY CHUẨN:
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <span style={{ fontSize: '1.4rem' }}>{DISPLAY_TYPES[shelfFormType].icon}</span>
+                  <span
+                    style={{
+                      fontSize: '1.35rem',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                      color: '#38bdf8',
+                      letterSpacing: '1px',
+                    }}
+                  >
+                    {previewShelfCode}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', marginTop: '6px' }}>
+                  👉 <b>Dịch ra:</b> {previewShelfDesc}
+                </div>
+              </div>
+
+              {/* Sức chứa & Ghi chú */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Sức Chứa Tối Đa (món):</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={shelfFormCapacity}
+                    onChange={(e) => setShelfFormCapacity(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Ghi Chú Vị Trí (Tùy chọn):</label>
+                  <input
+                    type="text"
+                    placeholder="VD: Cạnh quầy thu ngân"
+                    value={shelfFormNotes}
+                    onChange={(e) => setShelfFormNotes(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsAddShelfModalOpen(false)}>
                   Hủy
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Lưu Kệ
+                <button type="submit" className="btn btn-primary" style={{ padding: '10px 22px' }}>
+                  Lưu Vị Trí {previewShelfCode}
                 </button>
               </div>
             </form>

@@ -5,8 +5,15 @@ import {
   InventoryTransaction,
   Product,
   WarehouseBulkUnit,
+  WarehouseRackType,
 } from '../types';
 import { storageService } from '../services/storageService';
+import {
+  explainWarehouseCode,
+  generateWarehouseCode,
+  explainShelfCode,
+  WAREHOUSE_RACK_TYPES,
+} from '../services/locationService';
 import {
   Warehouse,
   Plus,
@@ -68,7 +75,7 @@ export const InventoryView: React.FC = () => {
     packageSpec: 'Bao 30kg hạt rang mộc',
     quantity: 5,
     unitPrice: 4800000,
-    locationCode: 'KHO-B1-T1',
+    locationCode: 'KHO01-KS02',
     unitsPerBulk: 60,
     notes: 'Nhập hàng sỉ kho định kỳ',
     imageUrl: '',
@@ -78,7 +85,19 @@ export const InventoryView: React.FC = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferringItem, setTransferringItem] = useState<WarehouseItem | null>(null);
   const [transferBulkQty, setTransferBulkQty] = useState(1);
-  const [targetShelfCode, setTargetShelfCode] = useState('KE-A1-T1');
+  const [targetShelfCode, setTargetShelfCode] = useState('KE01-T1A');
+
+  // Modal Thêm Vị Trí Kho Mới (Chuẩn: KHO01-KS01)
+  const [isAddLocationModalOpen, setIsAddLocationModalOpen] = useState(false);
+  const [whNum, setWhNum] = useState('01');
+  const [whRackType, setWhRackType] = useState<WarehouseRackType>('KS');
+  const [whRackNum, setWhRackNum] = useState('01');
+  const [whZone, setWhZone] = useState('Khu A (Hàng Khô / Đóng Gói Sỉ)');
+  const [whCapacity, setWhCapacity] = useState(50);
+  const [whNotes, setWhNotes] = useState('');
+
+  const previewWhCode = generateWarehouseCode(whNum, whRackType, whRackNum);
+  const previewWhDesc = explainWarehouseCode(previewWhCode);
 
   // Modal Thêm / Sửa Mặt Hàng Kho
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -92,7 +111,7 @@ export const InventoryView: React.FC = () => {
     importPrice: 195000,
     stockQuantity: 10,
     minStock: 2,
-    locationCode: 'KHO-A1-T1',
+    locationCode: 'KHO01-KS01',
     supplier: '',
     unitsPerBulk: 24,
     imageUrl: '',
@@ -129,7 +148,7 @@ export const InventoryView: React.FC = () => {
     setTransferringItem(item);
     setTransferBulkQty(1);
     const matched = products.find((p) => p.id === item.linkedShelfProductId);
-    setTargetShelfCode(matched?.shelfCode || 'KE-A1-T1');
+    setTargetShelfCode(matched?.shelfCode || 'KE01-T1A');
     setIsTransferModalOpen(true);
   };
 
@@ -227,7 +246,7 @@ export const InventoryView: React.FC = () => {
       importPrice: 195000,
       stockQuantity: 10,
       minStock: 2,
-      locationCode: 'KHO-A1-T1',
+      locationCode: 'KHO01-KS01',
       supplier: 'Đại Lý Phân Phối Sỉ',
       unitsPerBulk: 24,
       imageUrl: '',
@@ -264,7 +283,7 @@ export const InventoryView: React.FC = () => {
         importPrice: Number(itemForm.importPrice) || 0,
         stockQuantity: Number(itemForm.stockQuantity) || 0,
         minStock: Number(itemForm.minStock) || 2,
-        locationCode: itemForm.locationCode || 'KHO-A1-T1',
+        locationCode: itemForm.locationCode || 'KHO01-KS01',
         supplier: itemForm.supplier || '',
         unitsPerBulk: Number(itemForm.unitsPerBulk) || 1,
         imageUrl: itemForm.imageUrl || '',
@@ -282,6 +301,33 @@ export const InventoryView: React.FC = () => {
       storageService.deleteWarehouseItem(id);
       reloadData();
     }
+  };
+
+  // Thêm vị trí kho mới theo đúng quy chuẩn: KHO01-KS01
+  const handleAddWarehouseLocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalCode = previewWhCode;
+    if (!finalCode) return;
+
+    const newLoc: WarehouseLocation = {
+      id: 'wh-loc-' + Date.now(),
+      code: finalCode,
+      warehouseNumber: whNum,
+      rackType: whRackType,
+      rackNumber: whRackNum,
+      zone: whZone,
+      tier: 1,
+      capacity: Number(whCapacity) || 50,
+      currentCount: 0,
+      status: 'ACTIVE',
+      notes: whNotes || previewWhDesc,
+    };
+
+    const updated = [...warehouseLocations, newLoc];
+    setWarehouseLocations(updated);
+    storageService.saveWarehouseLocations(updated);
+    setIsAddLocationModalOpen(false);
+    setWhNotes('');
   };
 
   return (
@@ -358,11 +404,48 @@ export const InventoryView: React.FC = () => {
           </button>
 
           {!isLocked && (
-            <button className="btn btn-secondary" onClick={handleOpenAddItem}>
-              <Plus size={16} />
-              <span>Thêm Mặt Hàng Kho</span>
-            </button>
+            activeTab === 'locations' ? (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setIsAddLocationModalOpen(true)}
+                style={{ borderColor: '#818cf8', color: '#a5b4fc' }}
+              >
+                <Plus size={16} />
+                <span>Thêm Vị Trí Kho Mới</span>
+              </button>
+            ) : (
+              <button className="btn btn-secondary" onClick={handleOpenAddItem}>
+                <Plus size={16} />
+                <span>Thêm Mặt Hàng Kho</span>
+              </button>
+            )
           )}
+        </div>
+      </div>
+
+      {/* THANH THÔNG TIN QUY CHUẨN MÃ VỊ TRÍ KHO HÀNG */}
+      <div
+        style={{
+          background: 'rgba(99, 102, 241, 0.08)',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          marginBottom: '18px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          fontSize: '0.86rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a5b4fc', fontWeight: 800 }}>
+          <MapPin size={18} />
+          <span>QUY CHUẨN MÃ VỊ TRÍ KHO HÀNG (ĐÃ CẬP NHẬT)</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+          <span><b>🏗️ Định dạng chuẩn:</b> <code style={{ color: '#a5b4fc', fontWeight: 800 }}>KHO01-KS01</code> 👉 <i>Dịch ra: Kho 01 (hỗ trợ nhiều kho/cửa hàng sau này) • Kệ sắt 01</i></span>
+          <span>• <b>KS:</b> Kệ sắt chịu lực (chứa thùng sỉ, bao lớn)</span>
+          <span>• <b>KL:</b> Kho lạnh / Tủ mát lưu kho</span>
+          <span>• <b>PL:</b> Pallet sàn</span>
         </div>
       </div>
 
@@ -405,7 +488,7 @@ export const InventoryView: React.FC = () => {
           }}
         >
           <MapPin size={18} />
-          <span>Sơ Đồ Vị Trí Kho & Sức Chứa ({warehouseLocations.length} Khu)</span>
+          <span>Sơ Đồ Vị Trí Kho & Sức Chứa ({warehouseLocations.length} Vị Trí)</span>
         </button>
       </div>
 
@@ -519,7 +602,9 @@ export const InventoryView: React.FC = () => {
                         padding: '3px 8px',
                         borderRadius: '6px',
                         fontFamily: 'var(--font-mono)',
+                        cursor: 'help',
                       }}
+                      title={explainWarehouseCode(item.locationCode)}
                     >
                       📍 {item.locationCode}
                     </span>
@@ -546,6 +631,11 @@ export const InventoryView: React.FC = () => {
                     {/* Tên mặt hàng & SKU */}
                     <div style={{ fontSize: '0.96rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', lineHeight: 1.3 }}>
                       {item.name}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', color: '#a5b4fc', marginBottom: '6px' }}>
+                      <MapPin size={12} />
+                      <span style={{ fontWeight: 600 }}>{explainWarehouseCode(item.locationCode)}</span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#818cf8', marginBottom: '8px' }}>
@@ -642,13 +732,18 @@ export const InventoryView: React.FC = () => {
             return (
               <div key={loc.id} className="glass-panel" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <MapPin size={22} color="#818cf8" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.6rem' }}>
+                      {loc.code.includes('-KL') ? '❄️' : loc.code.includes('-PL') ? '📦' : '🏗️'}
+                    </span>
                     <div>
-                      <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#a5b4fc' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#a5b4fc' }}>
                         {loc.code}
-                      </span>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{loc.zone}</div>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                        {explainWarehouseCode(loc.code)}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{loc.zone}</div>
                     </div>
                   </div>
                   <span className="badge badge-success">Đang Hoạt Động</span>
@@ -859,14 +954,33 @@ export const InventoryView: React.FC = () => {
 
               <div>
                 <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Vị trí kệ nhận hàng trưng bày:</label>
-                <input
-                  type="text"
-                  required
-                  value={targetShelfCode}
-                  onChange={(e) => setTargetShelfCode(e.target.value)}
-                  placeholder="VD: KE-A1-T1"
-                  style={{ width: '100%', padding: '10px', marginTop: '6px', fontFamily: 'var(--font-mono)' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <input
+                    type="text"
+                    required
+                    value={targetShelfCode}
+                    onChange={(e) => setTargetShelfCode(e.target.value.toUpperCase())}
+                    placeholder="VD: KE01-T1A"
+                    style={{ flex: 1, padding: '10px', fontFamily: 'var(--font-mono)' }}
+                  />
+                  <select
+                    value={targetShelfCode}
+                    onChange={(e) => setTargetShelfCode(e.target.value)}
+                    style={{ padding: '10px', maxWidth: '240px' }}
+                  >
+                    <option value="">-- Chọn nhanh kệ --</option>
+                    {storageService.getShelves().map((s) => (
+                      <option key={s.id} value={s.code}>
+                        {s.code} ({explainShelfCode(s.code)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {targetShelfCode && (
+                  <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px' }}>
+                    👉 {explainShelfCode(targetShelfCode)}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
@@ -987,7 +1101,7 @@ export const InventoryView: React.FC = () => {
                   >
                     {warehouseLocations.map((loc) => (
                       <option key={loc.id} value={loc.code}>
-                        {loc.code} ({loc.zone})
+                        {loc.code} ({explainWarehouseCode(loc.code)})
                       </option>
                     ))}
                   </select>
@@ -1127,13 +1241,13 @@ export const InventoryView: React.FC = () => {
                 <div>
                   <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Vị Trí Ô Kho:</label>
                   <select
-                    value={itemForm.locationCode || 'KHO-A1-T1'}
+                    value={itemForm.locationCode || 'KHO01-KS01'}
                     onChange={(e) => setItemForm({ ...itemForm, locationCode: e.target.value })}
                     style={{ width: '100%', padding: '8px' }}
                   >
                     {warehouseLocations.map((loc) => (
                       <option key={loc.id} value={loc.code}>
-                        {loc.code} ({loc.zone})
+                        {loc.code} ({explainWarehouseCode(loc.code)})
                       </option>
                     ))}
                   </select>
@@ -1157,6 +1271,137 @@ export const InventoryView: React.FC = () => {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Lưu Mặt Hàng Kho
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==============================================================================
+          MODAL: THÊM VỊ TRÍ KHO MỚI THEO QUY CHUẨN KHO01-KS01
+          ============================================================================== */}
+      {isAddLocationModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddLocationModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={22} color="#818cf8" />
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Thêm Vị Trí Kho Hàng Mới</h3>
+              </div>
+              <button
+                onClick={() => setIsAddLocationModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddWarehouseLocation} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Cấu hình mã theo quy định: Kho 01, Kệ sắt 01 -> KHO01-KS01 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Số Kho (01, 02...):</label>
+                  <input
+                    type="text"
+                    required
+                    value={whNum}
+                    onChange={(e) => setWhNum(e.target.value)}
+                    placeholder="VD: 01"
+                    style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Loại Kệ / Lưu Trữ:</label>
+                  <select
+                    value={whRackType}
+                    onChange={(e) => setWhRackType(e.target.value as WarehouseRackType)}
+                    style={{ width: '100%', padding: '8px' }}
+                  >
+                    <option value="KS">🏗️ [KS] Kệ sắt chịu lực</option>
+                    <option value="KL">❄️ [KL] Kho lạnh / Tủ mát</option>
+                    <option value="PL">📦 [PL] Pallet sàn</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Số Kệ (01, 02...):</label>
+                  <input
+                    type="text"
+                    required
+                    value={whRackNum}
+                    onChange={(e) => setWhRackNum(e.target.value)}
+                    placeholder="VD: 01"
+                    style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+              </div>
+
+              {/* BẢNG PREVIEW MÃ VỊ TRÍ KHO VÀ DIỄN GIẢI */}
+              <div
+                style={{
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  MÃ VỊ TRÍ KHO TỰ ĐỘNG SINH THEO QUY CHUẨN:
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>{whRackType === 'KL' ? '❄️' : whRackType === 'PL' ? '📦' : '🏗️'}</span>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#a5b4fc', letterSpacing: '1px' }}>
+                    {previewWhCode}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', marginTop: '6px' }}>
+                  👉 <b>Dịch ra:</b> {previewWhDesc}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Khu Vực Phân Loại (Zone):</label>
+                  <input
+                    type="text"
+                    required
+                    value={whZone}
+                    onChange={(e) => setWhZone(e.target.value)}
+                    placeholder="VD: Khu A (Hàng Khô / Đóng Gói Sỉ)"
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Sức Chứa (quy cách sỉ):</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={whCapacity}
+                    onChange={(e) => setWhCapacity(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Ghi Chú Vị Trí Kho:</label>
+                <input
+                  type="text"
+                  placeholder="VD: Chứa thùng lon, chai nước ngọt, thùng sữa"
+                  value={whNotes}
+                  onChange={(e) => setWhNotes(e.target.value)}
+                  style={{ width: '100%', padding: '8px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddLocationModalOpen(false)}>
+                  Hủy
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ padding: '10px 22px' }}>
+                  Lưu Vị Trí {previewWhCode}
                 </button>
               </div>
             </form>

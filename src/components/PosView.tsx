@@ -21,6 +21,7 @@ import { printService } from '../services/printService';
 import { storageService } from '../services/storageService';
 import { vietqrService } from '../services/vietqrService';
 import { paymentWebhookService, WebhookBankTransaction } from '../services/paymentWebhookService';
+import { explainShelfCode } from '../services/locationService';
 import confetti from 'canvas-confetti';
 
 interface PosViewProps {
@@ -438,6 +439,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                   />
                   {p.shelfCode && (
                     <div
+                      title={explainShelfCode(p.shelfCode)}
                       style={{
                         position: 'absolute',
                         top: '4px',
@@ -450,6 +452,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                         fontWeight: 700,
                         color: '#38bdf8',
                         border: '1px solid rgba(56, 189, 248, 0.4)',
+                        cursor: 'help',
                       }}
                     >
                       📍 {p.shelfCode}
@@ -457,6 +460,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                   )}
                   {p.isPrepared && (
                     <div
+                      title="Món chế biến tại chỗ - Bán trực tiếp không qua kệ"
                       style={{
                         position: 'absolute',
                         bottom: '4px',
@@ -467,22 +471,47 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                         fontSize: '0.65rem',
                         fontWeight: 700,
                         color: '#000',
+                        cursor: 'help',
                       }}
                     >
-                      ☕ Pha Chế
+                      ☕ Pha Chế Tại Chỗ
                     </div>
                   )}
                 </div>
               )}
 
               <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
-                <div className="product-name">{p.name}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '4px' }}>
+                  <div className="product-name">{p.name}</div>
+                  {!p.imageUrl && p.shelfCode && (
+                    <span
+                      title={explainShelfCode(p.shelfCode)}
+                      style={{
+                        fontSize: '0.65rem',
+                        color: '#38bdf8',
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        padding: '1px 4px',
+                        borderRadius: '3px',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        whiteSpace: 'nowrap',
+                        cursor: 'help',
+                      }}
+                    >
+                      📍 {p.shelfCode}
+                    </span>
+                  )}
+                </div>
                 <div style={{ marginTop: '4px' }}>
                   <div className="product-price">
                     {new Intl.NumberFormat('vi-VN').format(p.retailPrice)}đ
                   </div>
-                  <div className="product-stock" style={{ marginTop: '2px' }}>
-                    {p.isPrepared ? 'Sẵn sàng' : `Tồn: ${p.stockQuantity} ${p.unit}`}
+                  <div className="product-stock" style={{ marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{p.isPrepared ? '☕ Pha chế tại chỗ' : `Tồn: ${p.stockQuantity} ${p.unit}`}</span>
+                    {p.shelfCode && (
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }} title={explainShelfCode(p.shelfCode)}>
+                        {p.shelfCode}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

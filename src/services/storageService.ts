@@ -38,7 +38,7 @@ const INITIAL_PRODUCTS: Product[] = [
     wholesalePrice: 115000,
     stockQuantity: 42,
     minStock: 10,
-    shelfCode: 'KE-A1-T1',
+    shelfCode: 'KE01-T1A',
     isPrepared: false,
     imageUrl: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=300&auto=format&fit=crop&q=80',
   },
@@ -53,7 +53,7 @@ const INITIAL_PRODUCTS: Product[] = [
     wholesalePrice: 160000,
     stockQuantity: 28,
     minStock: 8,
-    shelfCode: 'KE-A1-T1',
+    shelfCode: 'KE01-T1B',
     isPrepared: false,
     imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300&auto=format&fit=crop&q=80',
   },
@@ -68,7 +68,7 @@ const INITIAL_PRODUCTS: Product[] = [
     wholesalePrice: 20000,
     stockQuantity: 120,
     minStock: 24,
-    shelfCode: 'KE-A1-T2',
+    shelfCode: 'KE01-T2',
     isPrepared: false,
     imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80',
   },
@@ -83,7 +83,7 @@ const INITIAL_PRODUCTS: Product[] = [
     wholesalePrice: 50000,
     stockQuantity: 35,
     minStock: 10,
-    shelfCode: 'KE-B1-T1',
+    shelfCode: 'MO01-T1A',
     isPrepared: false,
     imageUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=300&auto=format&fit=crop&q=80',
   },
@@ -98,11 +98,71 @@ const INITIAL_PRODUCTS: Product[] = [
     wholesalePrice: 7500,
     stockQuantity: 80,
     minStock: 15,
-    shelfCode: 'KE-B2-T1',
+    shelfCode: 'KE02-T1',
     isPrepared: false,
     imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=300&auto=format&fit=crop&q=80',
   },
-  // Các món chế biến tại quầy (F&B)
+  {
+    id: 'prod-06',
+    barcode: '8935001006',
+    name: 'Nước ngọt Coca Cola lon 320ml (Ướp lạnh)',
+    category: 'TapHoa',
+    unit: 'Lon',
+    costPrice: 8500,
+    retailPrice: 12000,
+    wholesalePrice: 10000,
+    stockQuantity: 48,
+    minStock: 12,
+    shelfCode: 'TM01-T1A',
+    isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prod-07',
+    barcode: '8935001007',
+    name: 'Táo Envy New Zealand Tươi',
+    category: 'TapHoa',
+    unit: 'Kg',
+    costPrice: 85000,
+    retailPrice: 125000,
+    wholesalePrice: 105000,
+    stockQuantity: 25,
+    minStock: 5,
+    shelfCode: 'RO01-A',
+    isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prod-08',
+    barcode: '8935001008',
+    name: 'Kem Ốc Quế Socola Merino',
+    category: 'TapHoa',
+    unit: 'Cây',
+    costPrice: 12000,
+    retailPrice: 18000,
+    wholesalePrice: 15000,
+    stockQuantity: 30,
+    minStock: 8,
+    shelfCode: 'TL01-T1',
+    isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1570197788417-0e82375c9371?w=300&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prod-09',
+    barcode: '8935001009',
+    name: 'Trà Xanh Olong Tea+ Chai 455ml (Máy Bán Nước)',
+    category: 'TapHoa',
+    unit: 'Chai',
+    costPrice: 8000,
+    retailPrice: 12000,
+    wholesalePrice: 10000,
+    stockQuantity: 20,
+    minStock: 5,
+    shelfCode: 'NC01-T1A',
+    isPrepared: false,
+    imageUrl: 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=300&auto=format&fit=crop&q=80',
+  },
+  // Các món chế biến tại quầy (F&B) - Không có mã vị trí kệ vì bán trực tiếp tại chỗ
   {
     id: 'prod-fb-01',
     barcode: '2000000001',
@@ -164,55 +224,186 @@ const INITIAL_PRODUCTS: Product[] = [
 const INITIAL_SHELVES: ShelfLocation[] = [
   {
     id: 'shelf-01',
-    code: 'KE-A1-T1',
-    aisle: 'A',
+    code: 'KE01-T1A',
+    displayType: 'KE',
+    displayNumber: '01',
     tier: 1,
-    capacity: 50,
-    currentCount: 42,
+    slot: 'A',
+    capacity: 35,
+    currentCount: 22,
     status: 'ACTIVE',
-    notes: 'Kệ mặt tiền chính, trưng bày các dòng Cà phê hạt cao cấp',
-    assignedProducts: ['Cà phê Robusta Mộc S18', 'Cà phê Arabica Cầu Đất'],
+    notes: 'Kệ 01 Tầng 1 Ô A - Cà phê Robusta mộc S18',
+    assignedProducts: ['Cà phê Robusta Mộc S18 (500g)'],
   },
   {
     id: 'shelf-02',
-    code: 'KE-A1-T2',
-    aisle: 'A',
+    code: 'KE01-T1B',
+    displayType: 'KE',
+    displayNumber: '01',
+    tier: 1,
+    slot: 'B',
+    capacity: 35,
+    currentCount: 20,
+    status: 'ACTIVE',
+    notes: 'Kệ 01 Tầng 1 Ô B - Cà phê Arabica Cầu Đất',
+    assignedProducts: ['Cà phê Arabica Cầu Đất (500g)'],
+  },
+  {
+    id: 'shelf-03',
+    code: 'KE01-T2',
+    displayType: 'KE',
+    displayNumber: '01',
     tier: 2,
     capacity: 60,
     currentCount: 52,
     status: 'ACTIVE',
-    notes: 'Tầng ngang tầm mắt, nguyên liệu pha chế & đồ hộp',
-    assignedProducts: ['Sữa đặc Phương Nam', 'Bột Cacao Đắk Lắk'],
-  },
-  {
-    id: 'shelf-03',
-    code: 'KE-B1-T1',
-    aisle: 'B',
-    tier: 1,
-    capacity: 80,
-    currentCount: 75,
-    status: 'FULL',
-    notes: 'Khu vực bao bì, ly giấy, túi xách F&B',
-    assignedProducts: ['Ly giấy Kraft 500ml', 'Ống hút gạo tự hủy'],
+    notes: 'Kệ 01 Tầng 2 (Full tầng) - Sữa đặc Phương Nam hộp 380g',
+    assignedProducts: ['Sữa đặc Phương Nam hộp 380g'],
   },
   {
     id: 'shelf-04',
-    code: 'KE-B2-T1',
-    aisle: 'B',
-    tier: 2,
+    code: 'TM01-T1A',
+    displayType: 'TM',
+    displayNumber: '01',
+    tier: 1,
+    slot: 'A',
+    capacity: 50,
+    currentCount: 48,
+    status: 'ACTIVE',
+    notes: 'Tủ mát 01 Tầng 1 Ô A - Nước ngọt ướp lạnh sẵn',
+    assignedProducts: ['Nước ngọt Coca Cola lon 320ml (Ướp lạnh)'],
+  },
+  {
+    id: 'shelf-05',
+    code: 'TL01-T1',
+    displayType: 'TL',
+    displayNumber: '01',
+    tier: 1,
     capacity: 40,
+    currentCount: 30,
+    status: 'ACTIVE',
+    notes: 'Tủ lạnh đông 01 Tầng 1 (Full tầng) - Kem Merino & đồ đông',
+    assignedProducts: ['Kem Ốc Quế Socola Merino'],
+  },
+  {
+    id: 'shelf-06',
+    code: 'MO01-T1A',
+    displayType: 'MO',
+    displayNumber: '01',
+    tier: 1,
+    slot: 'A',
+    capacity: 40,
+    currentCount: 35,
+    status: 'ACTIVE',
+    notes: 'Móc treo Pegboard 01 Hàng 1 Móc A - Ly giấy Kraft & túi',
+    assignedProducts: ['Ly giấy Kraft 500ml kèm nắp'],
+  },
+  {
+    id: 'shelf-07',
+    code: 'RO01-A',
+    displayType: 'RO',
+    displayNumber: '01',
+    tier: 1,
+    slot: 'A',
+    capacity: 30,
+    currentCount: 25,
+    status: 'ACTIVE',
+    notes: 'Rổ trưng bày trái cây tươi Ô A - Táo Envy nhập khẩu',
+    assignedProducts: ['Táo Envy New Zealand Tươi'],
+  },
+  {
+    id: 'shelf-08',
+    code: 'NC01-T1A',
+    displayType: 'NC',
+    displayNumber: '01',
+    tier: 1,
+    slot: 'A',
+    capacity: 25,
+    currentCount: 20,
+    status: 'ACTIVE',
+    notes: 'Máy bán nước tự động 01 Khay 1 Ô A - Trà Olong Tea+',
+    assignedProducts: ['Trà Xanh Olong Tea+ Chai 455ml (Máy Bán Nước)'],
+  },
+  {
+    id: 'shelf-09',
+    code: 'KE02-T1',
+    displayType: 'KE',
+    displayNumber: '02',
+    tier: 1,
+    capacity: 50,
     currentCount: 15,
     status: 'ACTIVE',
-    notes: 'Vật tư tiêu hao văn phòng & quầy thu ngân',
-    assignedProducts: ['Giấy in nhiệt K80', 'Ruy băng máy in'],
+    notes: 'Kệ 02 Tầng 1 (Full tầng) - Giấy in nhiệt quầy thu ngân',
+    assignedProducts: ['Giấy in nhiệt K80 phi 45 (Bọc bạc)'],
   },
 ];
 
 const INITIAL_WAREHOUSE_LOCATIONS: WarehouseLocation[] = [
-  { id: 'wh-loc-01', code: 'KHO-A1-T1', zone: 'Khu A (Hàng Khô / Đóng Gói)', tier: 1, capacity: 50, currentCount: 28, status: 'ACTIVE', notes: 'Khu vực lưu trữ thùng lon, chai nước ngọt, đồ hộp sỉ' },
-  { id: 'wh-loc-02', code: 'KHO-B1-T1', zone: 'Khu B (Nguyên Liệu Pha Chế F&B)', tier: 1, capacity: 40, currentCount: 32, status: 'ACTIVE', notes: 'Bao cà phê hạt mộc 30kg, thùng sữa đặc 48 hộp, can siro' },
-  { id: 'wh-loc-03', code: 'KHO-C1-T1', zone: 'Khu C (Bao Bì & Vật Tư Quán)', tier: 1, capacity: 60, currentCount: 45, status: 'ACTIVE', notes: 'Thùng ly giấy 1000 cái, thùng ống hút, thùng giấy in K80' },
-  { id: 'wh-loc-04', code: 'KHO-LANH-01', zone: 'Khu Lạnh (Kho Mát Bảo Quản)', tier: 1, capacity: 25, currentCount: 18, status: 'ACTIVE', notes: 'Sữa tươi thanh trùng, bơ, pate, sốt pha chế' },
+  {
+    id: 'wh-loc-01',
+    code: 'KHO01-KS01',
+    warehouseNumber: '01',
+    rackType: 'KS',
+    rackNumber: '01',
+    zone: 'Khu A (Hàng Khô / Đóng Gói Sỉ)',
+    tier: 1,
+    capacity: 50,
+    currentCount: 28,
+    status: 'ACTIVE',
+    notes: 'Kho 01 Kệ sắt 01 - Lưu trữ thùng lon, chai nước ngọt, thùng sữa đặc sỉ',
+  },
+  {
+    id: 'wh-loc-02',
+    code: 'KHO01-KS02',
+    warehouseNumber: '01',
+    rackType: 'KS',
+    rackNumber: '02',
+    zone: 'Khu B (Nguyên Liệu Cà Phê & Pha Chế)',
+    tier: 1,
+    capacity: 40,
+    currentCount: 32,
+    status: 'ACTIVE',
+    notes: 'Kho 01 Kệ sắt 02 - Bao cà phê hạt mộc 30kg, bao cà phê Arabica',
+  },
+  {
+    id: 'wh-loc-03',
+    code: 'KHO01-KS03',
+    warehouseNumber: '01',
+    rackType: 'KS',
+    rackNumber: '03',
+    zone: 'Khu C (Bao Bì & Vật Tư Quán)',
+    tier: 1,
+    capacity: 60,
+    currentCount: 45,
+    status: 'ACTIVE',
+    notes: 'Kho 01 Kệ sắt 03 - Thùng ly giấy 1000 cái, thùng giấy in K80',
+  },
+  {
+    id: 'wh-loc-04',
+    code: 'KHO01-KL01',
+    warehouseNumber: '01',
+    rackType: 'KL',
+    rackNumber: '01',
+    zone: 'Khu Lạnh (Kho Mát Bảo Quản Thực Phẩm)',
+    tier: 1,
+    capacity: 25,
+    currentCount: 18,
+    status: 'ACTIVE',
+    notes: 'Kho 01 Kho lạnh 01 - Can siro đào, sữa tươi thanh trùng, bơ, sốt',
+  },
+  {
+    id: 'wh-loc-05',
+    code: 'KHO02-KS01',
+    warehouseNumber: '02',
+    rackType: 'KS',
+    rackNumber: '01',
+    zone: 'Kho Phụ 02 (Dự phòng mở rộng chuỗi)',
+    tier: 1,
+    capacity: 80,
+    currentCount: 10,
+    status: 'ACTIVE',
+    notes: 'Kho 02 Kệ sắt 01 - Lưu trữ pallet & vật tư đợt cao điểm',
+  },
 ];
 
 const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
@@ -226,7 +417,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 4800000,
     stockQuantity: 8,
     minStock: 2,
-    locationCode: 'KHO-B1-T1',
+    locationCode: 'KHO01-KS02',
     supplier: 'Tổng Kho Cà Phê Ban Mê',
     unitsPerBulk: 60,
     linkedShelfProductId: 'prod-01',
@@ -242,7 +433,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 4400000,
     stockQuantity: 5,
     minStock: 2,
-    locationCode: 'KHO-B1-T1',
+    locationCode: 'KHO01-KS02',
     supplier: 'Tổng Kho Cà Phê Ban Mê',
     unitsPerBulk: 40,
     linkedShelfProductId: 'prod-02',
@@ -258,7 +449,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 840000,
     stockQuantity: 15,
     minStock: 4,
-    locationCode: 'KHO-A1-T1',
+    locationCode: 'KHO01-KS01',
     supplier: 'Đại Lý Phân Phối Sữa Vinamilk',
     unitsPerBulk: 48,
     linkedShelfProductId: 'prod-03',
@@ -274,7 +465,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 820000,
     stockQuantity: 12,
     minStock: 3,
-    locationCode: 'KHO-C1-T1',
+    locationCode: 'KHO01-KS03',
     supplier: 'Công ty Bao Bì Sài Gòn Xanh',
     unitsPerBulk: 20,
     linkedShelfProductId: 'prod-04',
@@ -290,7 +481,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 320000,
     stockQuantity: 18,
     minStock: 5,
-    locationCode: 'KHO-C1-T1',
+    locationCode: 'KHO01-KS03',
     supplier: 'Tổng Kho Thiết Bị An Nam',
     unitsPerBulk: 50,
     linkedShelfProductId: 'prod-05',
@@ -306,7 +497,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 380000,
     stockQuantity: 10,
     minStock: 3,
-    locationCode: 'KHO-B1-T1',
+    locationCode: 'KHO01-KL01',
     supplier: 'Cty Nguyên Liệu Pha Chế Việt',
     unitsPerBulk: 5,
     imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300&auto=format&fit=crop&q=80',
@@ -321,9 +512,10 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
     importPrice: 195000,
     stockQuantity: 25,
     minStock: 5,
-    locationCode: 'KHO-A1-T1',
+    locationCode: 'KHO01-KS01',
     supplier: 'Đại Lý Nước Giải Khát Miền Nam',
     unitsPerBulk: 24,
+    linkedShelfProductId: 'prod-06',
     imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&auto=format&fit=crop&q=80',
   },
 ];
@@ -750,18 +942,66 @@ class StorageService {
     }
   }
 
+  // Helper chuẩn hóa mã vị trí cũ sang chuẩn mới theo quy định
+  private migrateLocationCode(code?: string): string | undefined {
+    if (!code) return code;
+    const c = code.trim().toUpperCase();
+    if (c === 'KE-A1-T1') return 'KE01-T1A';
+    if (c === 'KE-A1-T2') return 'KE01-T2';
+    if (c === 'KE-B1-T1') return 'MO01-T1A';
+    if (c === 'KE-B2-T1') return 'KE02-T1';
+    if (c === 'KHO-A1-T1') return 'KHO01-KS01';
+    if (c === 'KHO-B1-T1') return 'KHO01-KS02';
+    if (c === 'KHO-C1-T1') return 'KHO01-KS03';
+    if (c === 'KHO-LANH-01') return 'KHO01-KL01';
+    return code;
+  }
+
   // --- Products ---
   public getProducts(): Product[] {
     const list = this.getItem<Product[]>('products', INITIAL_PRODUCTS);
-    return list.map((item) => {
-      if (!item.imageUrl) {
-        const fallback = INITIAL_PRODUCTS.find((p) => p.id === item.id);
-        if (fallback?.imageUrl) {
-          return { ...item, imageUrl: fallback.imageUrl };
+    let hasChanges = false;
+
+    // Đảm bảo bổ sung các mặt hàng mẫu mới (TM01-T1A, TL01-T1, RO01-A, NC01-T1A) nếu chưa có
+    for (const initP of INITIAL_PRODUCTS) {
+      if (!list.some((p) => p.id === initP.id)) {
+        list.push(initP);
+        hasChanges = true;
+      }
+    }
+
+    const migrated = list.map((item) => {
+      let changed = false;
+      let newItem = { ...item };
+
+      // Chế biến: Không có mã vị trí kệ vì làm và bán tại chỗ
+      if (newItem.isPrepared && newItem.shelfCode) {
+        delete newItem.shelfCode;
+        changed = true;
+      } else if (newItem.shelfCode) {
+        const updatedCode = this.migrateLocationCode(newItem.shelfCode);
+        if (updatedCode !== newItem.shelfCode) {
+          newItem.shelfCode = updatedCode;
+          changed = true;
         }
       }
-      return item;
+
+      if (!newItem.imageUrl) {
+        const fallback = INITIAL_PRODUCTS.find((p) => p.id === newItem.id);
+        if (fallback?.imageUrl) {
+          newItem.imageUrl = fallback.imageUrl;
+          changed = true;
+        }
+      }
+
+      if (changed) hasChanges = true;
+      return newItem;
     });
+
+    if (hasChanges) {
+      this.saveProducts(migrated);
+    }
+    return migrated;
   }
   public saveProducts(products: Product[]): void {
     this.setItem('products', products);
@@ -782,7 +1022,14 @@ class StorageService {
 
   // --- Shelves (Tab 1) ---
   public getShelves(): ShelfLocation[] {
-    return this.getItem('shelves', INITIAL_SHELVES);
+    const list = this.getItem<ShelfLocation[]>('shelves', INITIAL_SHELVES);
+    // Nếu dữ liệu cũ trong localStorage vẫn mang mã cũ như KE-A1-T1, tự động nâng cấp sang INITIAL_SHELVES mới
+    const hasOldCode = list.some((s) => s.code.includes('KE-') || !s.displayType);
+    if (hasOldCode) {
+      this.saveShelves(INITIAL_SHELVES);
+      return INITIAL_SHELVES;
+    }
+    return list;
   }
   public saveShelves(shelves: ShelfLocation[]): void {
     this.setItem('shelves', shelves);
@@ -844,7 +1091,20 @@ class StorageService {
 
   // --- Warehouse & Inventory (Tab 4) ---
   public getWarehouseItems(): WarehouseItem[] {
-    return this.getItem('warehouse_items', INITIAL_WAREHOUSE_ITEMS);
+    const list = this.getItem<WarehouseItem[]>('warehouse_items', INITIAL_WAREHOUSE_ITEMS);
+    let changed = false;
+    const migrated = list.map((item) => {
+      const updatedLoc = this.migrateLocationCode(item.locationCode);
+      if (updatedLoc && updatedLoc !== item.locationCode) {
+        changed = true;
+        return { ...item, locationCode: updatedLoc };
+      }
+      return item;
+    });
+    if (changed) {
+      this.saveWarehouseItems(migrated);
+    }
+    return migrated;
   }
   public saveWarehouseItems(items: WarehouseItem[]): void {
     this.setItem('warehouse_items', items);
@@ -863,7 +1123,13 @@ class StorageService {
     this.saveWarehouseItems(list);
   }
   public getWarehouseLocations(): WarehouseLocation[] {
-    return this.getItem('warehouse_locations', INITIAL_WAREHOUSE_LOCATIONS);
+    const list = this.getItem<WarehouseLocation[]>('warehouse_locations', INITIAL_WAREHOUSE_LOCATIONS);
+    const hasOldCode = list.some((l) => l.code.includes('KHO-') || !l.rackType);
+    if (hasOldCode) {
+      this.saveWarehouseLocations(INITIAL_WAREHOUSE_LOCATIONS);
+      return INITIAL_WAREHOUSE_LOCATIONS;
+    }
+    return list;
   }
   public saveWarehouseLocations(locations: WarehouseLocation[]): void {
     this.setItem('warehouse_locations', locations);
@@ -900,7 +1166,7 @@ class StorageService {
       id: 'inv-out-' + Date.now(),
       slipCode,
       type: 'OUT',
-      supplier: 'Xuất lên Kệ ' + (targetShelfCode || targetProd?.shelfCode || 'KE-A1-T1'),
+      supplier: 'Xuất lên Kệ ' + (targetShelfCode || targetProd?.shelfCode || 'KE01-T1A'),
       totalCost: bulkQuantity * whItem.importPrice,
       notes: `Xuất ${bulkQuantity} ${whItem.bulkUnit} (${addedUnits} ${whItem.packageSpec}) từ vị trí ${whItem.locationCode} ra kệ`,
       items: [
