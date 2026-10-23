@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { CartItem, AppSettings } from '../types';
+import { CartItem, AppSettings, PosOrder } from '../types';
 import { dualScreenSync, CheckoutStatus } from '../services/dualScreenSync';
 import { vietqrService } from '../services/vietqrService';
 import { soundService } from '../services/soundService';
+import { storageService } from '../services/storageService';
+import { printService } from '../services/printService';
 import {
   ShoppingCart,
   QrCode,
@@ -15,6 +17,16 @@ import {
   CreditCard,
   ScanLine,
   Loader2,
+  Lock,
+  Unlock,
+  Usb,
+  Printer,
+  Shield,
+  KeyRound,
+  X,
+  Maximize,
+  Minimize,
+  Trash2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { paymentWebhookService } from '../services/paymentWebhookService';
@@ -58,24 +70,197 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
   const [paidAmount, setPaidAmount] = useState(0);
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  // Chế độ Kiosk độc lập (Tự quét hàng, tự sinh QR, tự in bill)
+  const [isKioskMode, setIsKioskMode] = useState<boolean>(() => {
+    if (stationId > 1) return true;
+    return localStorage.getItem('pgd_kiosk_mode_' + stationId) === 'true';
+  });
+
+  // Chế độ Khóa Kiosk (Toàn màn hình, chặn chuột phải, chặn phím tắt Windows/Browser, khóa cảm ứng)
+  const [isKioskLocked, setIsKioskLocked] = useState<boolean>(() => {
+    return localStorage.getItem('pgd_kiosk_locked_' + stationId) === 'true';
+  });
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const ADMIN_PIN = '1234';
+
+  // Cấu hình thiết bị phần cứng riêng cho Trạm
+  const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
+  const [isSerialConnected, setIsSerialConnected] = useState(false);
+  const [serialDeviceName, setSerialDeviceName] = useState('');
+  const [stationPrinterName, setStationPrinterName] = useState(() => {
+    return localStorage.getItem('pgd_station_printer_' + stationId) || `Máy in Bill Trạm ${stationId}`;
+  });
+
+  // Bật chế độ Khóa Kiosk
+  const handleLockKiosk = () => {
+    setIsKioskLocked(true);
+    localStorage.setItem('pgd_kiosk_locked_' + stationId, 'true');
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
+  // Mở khóa Kiosk bằng mã PIN
+  const handleUnlockKioskSubmit = () => {
+    if (pinInput === ADMIN_PIN) {
+      setIsKioskLocked(false);
+      localStorage.setItem('pgd_kiosk_locked_' + stationId, 'false');
+      setIsPinModalOpen(false);
+      setPinInput('');
+      setPinError('');
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } else {
+      setPinError('Mã PIN không đúng! (Mặc định: 1234)');
+    }
+  };
+
+  // Chặn chuột phải và phím tắt nguy hiểm khi đang Khóa Kiosk
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (isKioskLocked) {
+        e.preventDefault();
+      }
+    };
+
+    const handlePreventKeys = (e: KeyboardEvent) => {
+      if (!isKioskLocked) return;
+      if (
+        e.key === 'F12' ||
+        e.key === 'F11' ||
+        (e.ctrlKey && ['w', 'W', 'r', 'R', 't', 'T', 'n', 'N', 'u', 'U', 'p', 'P'].includes(e.key)) ||
+        (e.altKey && ['ArrowLeft', 'ArrowRight', 'F4'].includes(e.key))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handlePreventKeys, true);
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handlePreventKeys, true);
+    };
+  }, [isKioskLocked]);
+
+  // Kết nối trực tiếp máy quét Barcode USB qua Web Serial (chống xung đột phím giữa các trạm)
+  const handleConnectSerialScanner = async () => {
+    if (!('serial' in navigator)) {
+      alert('Trình duyệt hiện tại không hỗ trợ Web Serial. Vui lòng mở trang này trên Google Chrome hoặc Microsoft Edge!');
+      return;
+    }
+    try {
+      const port = await (navigator as any).serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      setIsSerialConnected(true);
+      setSerialDeviceName('USB Virtual COM');
+      alert(`✅ Đã kết nối máy quét Barcode riêng cho Trạm ${stationId} thành công! Mọi mã quét từ máy này sẽ chạy trực tiếp vào trạm này.`);
+
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          reader.releaseLock();
+          break;
+        }
+        if (value) {
+          buffer += value;
+          if (buffer.includes('\r') || buffer.includes('\n')) {
+            const lines = buffer.split(/[\r\n]+/);
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+              if (line.trim()) {
+                handleProcessBarcode(line.trim());
+              }
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        console.warn('Serial error:', err);
+      }
+    }
+  };
+
   // Lắng nghe phím bấm từ máy quét barcode khi cắm trực tiếp vào màn hình khách
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
 
+  // Xử lý quét barcode độc lập cho từng trạm
+  const handleProcessBarcode = (scannedCode: string) => {
+    const scanned = scannedCode.trim().toUpperCase();
+    if (!scanned) return;
+
+    if (scanned === 'THANHTOAN' || scanned === 'CHECKOUT') {
+      handleTriggerPaymentBarcode();
+      return;
+    }
+
+    if (scanned === 'XOA' || scanned === 'CLEAR' || scanned === 'HUY') {
+      handleTriggerUndoBarcode();
+      return;
+    }
+
+    // Nếu ở chế độ Kiosk tự phục vụ:
+    if (isKioskMode) {
+      const products = storageService.getProducts();
+      const matched = products.find((p) => p.barcode.toUpperCase() === scanned);
+      if (matched) {
+        soundService.playBarcodeBeep();
+        setLastScannedId(matched.id);
+        if (checkoutStatus === 'AWAITING_PAYMENT') {
+          paymentWebhookService.stopMonitoring();
+          setCheckoutStatus('SCANNING');
+          setOrderCode('');
+        }
+
+        setCart((prev) => {
+          const existIdx = prev.findIndex((i) => i.product.id === matched.id);
+          let updated: CartItem[];
+          if (existIdx >= 0) {
+            updated = [...prev];
+            const newQty = updated[existIdx].quantity + 1;
+            updated[existIdx] = {
+              ...updated[existIdx],
+              quantity: newQty,
+              subtotal: newQty * matched.retailPrice,
+            };
+          } else {
+            updated = [...prev, { product: matched, quantity: 1, subtotal: matched.retailPrice }];
+          }
+          const total = updated.reduce((s, i) => s + i.subtotal, 0);
+          setTotalAmount(total);
+          setFinalAmount(total - discountAmount);
+          return updated;
+        });
+      } else {
+        soundService.speakVietnamese('Không tìm thấy sản phẩm có mã này');
+      }
+    } else {
+      // Chế độ đồng bộ quầy
+      soundService.playBarcodeBeep();
+      dualScreenSync.customerScannedBarcode(scanned);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Bỏ qua nếu đang gõ mã PIN trong modal
+      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
       // Khi máy quét barcode nhấn Enter
       if (e.key === 'Enter') {
-        const scanned = barcodeBuffer.trim().toUpperCase();
+        const scanned = barcodeBuffer.trim();
         setBarcodeBuffer('');
-        if (!scanned) return;
-
-        if (scanned === 'THANHTOAN' || scanned === 'CHECKOUT') {
-          handleTriggerPaymentBarcode();
-        } else if (scanned === 'XOA' || scanned === 'CLEAR' || scanned === 'HUY') {
-          handleTriggerUndoBarcode();
-        } else {
-          soundService.playBarcodeBeep();
-          dualScreenSync.customerScannedBarcode(scanned);
+        if (scanned) {
+          handleProcessBarcode(scanned);
         }
       } else if (e.key.length === 1) {
         setBarcodeBuffer((prev) => prev + e.key);
@@ -84,7 +269,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [barcodeBuffer, cart, finalAmount, checkoutStatus, lastScannedId]);
+  }, [barcodeBuffer, cart, finalAmount, checkoutStatus, lastScannedId, isKioskMode]);
 
   useEffect(() => {
     // Đăng ký nhận đồng bộ từ màn hình thu ngân
@@ -156,6 +341,28 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
     setCheckoutStatus('COMPLETED');
 
     confetti({ particleCount: 130, spread: 80, origin: { y: 0.5 } });
+
+    // Lưu đơn hàng PosOrder vào DB và in bill cho trạm này
+    if (cart.length > 0) {
+      const newOrder: PosOrder = {
+        id: 'kiosk-' + Date.now(),
+        orderCode: orderCode || ('KS' + stationId + '-' + Date.now().toString().slice(-6)),
+        cashierName: `Kiosk Tự Phục Vụ (Trạm ${stationId})`,
+        items: cart,
+        totalAmount,
+        discountAmount,
+        finalAmount,
+        paymentMethod: method,
+        paymentStatus: 'PAID',
+        transferContent: `PGDSHOP KS${stationId} ` + Date.now().toString().slice(-4),
+        createdAt: new Date().toISOString(),
+        paidAt: new Date().toISOString(),
+      };
+      storageService.savePosOrder(newOrder);
+
+      // In bill qua máy in được gán cho trạm này
+      printService.printThermalReceipt(newOrder, settings);
+    }
 
     let left = settings.autoClearDelaySeconds || 4;
     setCountdown(left);
@@ -342,18 +549,94 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         <>
           {/* CỘT TRÁI: GIỎ HÀNG THỰC TẾ CỦA KHÁCH */}
           <div className="cfd-column">
-            {/* Header gọn gàng: Tên shop & Trạng thái & Mã Trạm */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+            {/* Header gọn gàng: Tên shop & Trạng thái & Mã Trạm & Nút Khóa Kiosk */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Store size={22} color="var(--primary)" />
                 <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{settings.storeName}</span>
                 <span style={{ background: 'var(--accent)', color: 'var(--primary)', fontSize: '0.74rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 800, border: '1px solid var(--primary)' }}>
                   📺 Trạm {stationId} {stationId === 1 ? '(Quầy)' : `(Kiosk ${stationId})`}
                 </span>
+                {isSerialConnected && (
+                  <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, border: '1px solid #10b981' }}>
+                    🔌 Đã gán cổng Scanner riêng
+                  </span>
+                )}
               </div>
-              <span className={`badge ${checkoutStatus === 'AWAITING_PAYMENT' ? 'badge-primary' : 'badge-success'}`}>
-                {checkoutStatus === 'AWAITING_PAYMENT' ? '💳 Chờ Khách Quét QR' : '🛒 Đang Quét Hàng'}
-              </span>
+
+              {/* Nút điều khiển Kiosk Lock & Cài đặt thiết bị trạm */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={`badge ${checkoutStatus === 'AWAITING_PAYMENT' ? 'badge-primary' : 'badge-success'}`}>
+                  {checkoutStatus === 'AWAITING_PAYMENT' ? '💳 Chờ Khách Quét QR' : '🛒 Đang Quét Hàng'}
+                </span>
+
+                {isKioskLocked ? (
+                  <button
+                    onClick={() => setIsPinModalOpen(true)}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid #ef4444',
+                      color: '#f87171',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.76rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                    title="Màn hình đang khóa an toàn chống thao tác. Click để nhập PIN mở khóa."
+                  >
+                    <Lock size={13} />
+                    <span>Đang Khóa Kiosk</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setIsHardwareModalOpen(true)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                      title="Cài đặt cổng USB máy quét barcode và máy in cho trạm này"
+                    >
+                      <Usb size={13} />
+                      <span>Thiết Bị Cổng</span>
+                    </button>
+
+                    <button
+                      onClick={handleLockKiosk}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid #10b981',
+                        color: '#10b981',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                      title="Bật Khóa Toàn Màn Hình chống khách tắt web / vuốt linh tinh"
+                    >
+                      <Lock size={13} />
+                      <span>Khóa Kiosk</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Danh sách món trong giỏ (co giãn vừa khít 1 màn hình) */}
@@ -751,6 +1034,268 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
             </div>
           </div>
         </>
+      )}
+
+      {/* MODAL BÀN PHÍM CẢM ỨNG NHẬP MÃ PIN MỞ KHÓA KIOSK */}
+      {isPinModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsPinModalOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '340px', padding: '24px', textAlign: 'center' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#f87171', marginBottom: '10px' }}>
+              <Lock size={26} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Mở Khóa Kiosk Trạm {stationId}</h3>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              Nhập mã PIN quản trị viên (Mặc định: <b>1234</b>)
+            </p>
+
+            {/* Màn hình hiển thị số PIN đã nhập */}
+            <div
+              style={{
+                background: 'rgba(0, 0, 0, 0.4)',
+                border: '1.5px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '1.5rem',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '8px',
+                marginBottom: '14px',
+                minHeight: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary)',
+              }}
+            >
+              {pinInput ? '•'.repeat(pinInput.length) : <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', letterSpacing: 'normal' }}>Chạm phím số bên dưới</span>}
+            </div>
+
+            {pinError && (
+              <div style={{ color: '#ef4444', fontSize: '0.78rem', marginBottom: '10px', fontWeight: 600 }}>
+                {pinError}
+              </div>
+            )}
+
+            {/* Bàn phím số cảm ứng 0-9 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                <button
+                  key={digit}
+                  type="button"
+                  onClick={() => {
+                    if (pinInput.length < 6) {
+                      setPinInput((prev) => prev + digit);
+                      setPinError('');
+                    }
+                  }}
+                  style={{
+                    padding: '14px',
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {digit}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setPinInput('');
+                  setPinError('');
+                }}
+                style={{
+                  padding: '14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid #ef4444',
+                  color: '#f87171',
+                  cursor: 'pointer',
+                }}
+              >
+                Xóa
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pinInput.length < 6) {
+                    setPinInput((prev) => prev + '0');
+                    setPinError('');
+                  }
+                }}
+                style={{
+                  padding: '14px',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleUnlockKioskSubmit}
+                style={{
+                  padding: '14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  borderRadius: '8px',
+                  background: '#10b981',
+                  border: 'none',
+                  color: '#000',
+                  cursor: 'pointer',
+                }}
+              >
+                OK
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: '100%', padding: '8px' }}
+              onClick={() => {
+                setIsPinModalOpen(false);
+                setPinInput('');
+                setPinError('');
+              }}
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CẤU HÌNH THIẾT BỊ PHẦN CỨNG GÁN CHO TRẠM */}
+      {isHardwareModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsHardwareModalOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '480px', padding: '24px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8' }}>
+                <Usb size={22} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Cấu Hình Thiết Bị Trạm {stationId}</h3>
+              </div>
+              <button onClick={() => setIsHardwareModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 1. MÁY QUÉT BARCODE CỔNG USB RIÊNG (WEB SERIAL) */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '14px', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#10b981' }}>
+                  🔌 1. Máy Quét Barcode Cổng USB Riêng
+                </span>
+                <span style={{ fontSize: '0.72rem', background: isSerialConnected ? '#dcfce7' : '#fee2e2', color: isSerialConnected ? '#15803d' : '#b91c1c', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                  {isSerialConnected ? 'ĐÃ KẾT NỐI' : 'CHƯA KẾT NỐI CỔNG'}
+                </span>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
+                Khi cắm nhiều máy scan trên 1 PC, chuyển máy scan sang chế độ <b>USB Virtual COM</b> và bấm nút dưới để gán riêng cổng cho Trạm {stationId} (chống nhảy mã sang trạm khác):
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConnectSerialScanner}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
+              >
+                <Usb size={16} />
+                <span>{isSerialConnected ? 'Đổi Cổng USB Khác' : 'Chọn Cổng USB Cho Máy Scan Này'}</span>
+              </button>
+            </div>
+
+            {/* 2. MÁY IN BILL GÁN CHO TRẠM */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '14px', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.92rem', color: '#38bdf8', marginBottom: '8px' }}>
+                <Printer size={16} />
+                <span>2. Tên Máy In Bill Của Trạm {stationId}</span>
+              </div>
+              <input
+                type="text"
+                value={stationPrinterName}
+                onChange={(e) => {
+                  setStationPrinterName(e.target.value);
+                  localStorage.setItem('pgd_station_printer_' + stationId, e.target.value);
+                }}
+                placeholder={`Ví dụ: Máy in Bill Trạm ${stationId} (USB00${stationId})`}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.88rem',
+                }}
+              />
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Khi khách ở Trạm {stationId} thanh toán xong, hệ thống sẽ tự động gửi lệnh in bill tới máy in này.
+              </div>
+            </div>
+
+            {/* 3. CHẾ ĐỘ TRẠM */}
+            {stationId === 1 && (
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '14px', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f59e0b', marginBottom: '8px' }}>
+                  ⚙️ 3. Chế Độ Trạm 1
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="kioskMode"
+                      checked={isKioskMode}
+                      onChange={() => {
+                        setIsKioskMode(true);
+                        localStorage.setItem('pgd_kiosk_mode_' + stationId, 'true');
+                      }}
+                    />
+                    <span>Kiosk Tự Phục Vụ Độc Lập</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="kioskMode"
+                      checked={!isKioskMode}
+                      onChange={() => {
+                        setIsKioskMode(false);
+                        localStorage.setItem('pgd_kiosk_mode_' + stationId, 'false');
+                      }}
+                    />
+                    <span>Màn Đồng Bộ Quầy Thu Ngân</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsHardwareModalOpen(false)}
+              >
+                Lưu & Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
