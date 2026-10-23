@@ -168,6 +168,33 @@ export function explainWarehouseCode(code?: string): string {
   return `Kho ${whNum} • ${rackName} ${rackNum}`;
 }
 
+/**
+ * Lấy biểu tượng / logo trực quan cho mã vị trí Kệ hàng (KE, TL, TM, MO, RO, NC)
+ */
+export function getShelfIcon(code?: string): string {
+  if (!code) return '📍';
+  const trimmed = code.trim().toUpperCase();
+  if (trimmed.startsWith('KE')) return '🗄️';
+  if (trimmed.startsWith('TL')) return '🧊';
+  if (trimmed.startsWith('TM')) return '🥛';
+  if (trimmed.startsWith('MO')) return '🪝';
+  if (trimmed.startsWith('RO')) return '🧺';
+  if (trimmed.startsWith('NC')) return '🥤';
+  return '📍';
+}
+
+/**
+ * Lấy biểu tượng / logo trực quan cho mã vị trí Kho hàng (KS, KL, PL)
+ */
+export function getWarehouseIcon(code?: string): string {
+  if (!code) return '📦';
+  const trimmed = code.trim().toUpperCase();
+  if (trimmed.includes('-KS') || trimmed.includes('KS')) return '🏗️';
+  if (trimmed.includes('-KL') || trimmed.includes('KL')) return '❄️';
+  if (trimmed.includes('-PL') || trimmed.includes('PL')) return '📦';
+  return '📦';
+}
+
 export const locationService = {
   DISPLAY_TYPES,
   WAREHOUSE_RACK_TYPES,
@@ -175,4 +202,6 @@ export const locationService = {
   explainShelfCode,
   generateWarehouseCode,
   explainWarehouseCode,
+  getShelfIcon,
+  getWarehouseIcon,
 };

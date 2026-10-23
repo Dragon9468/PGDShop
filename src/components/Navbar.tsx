@@ -14,6 +14,8 @@ import {
   Volume2,
   VolumeX,
   ExternalLink,
+  ChevronDown,
+  Plus,
 } from 'lucide-react';
 import { dualScreenSync } from '../services/dualScreenSync';
 import { soundService } from '../services/soundService';
@@ -50,9 +52,24 @@ export const Navbar: React.FC<NavbarProps> = ({
     document.documentElement.setAttribute('data-theme', saved);
   }, []);
 
-  const handleOpenDualScreen = () => {
-    dualScreenSync.openCustomerDisplayWindow();
+  const [showStationMenu, setShowStationMenu] = useState(false);
+  const [stationCount, setStationCount] = useState<number>(() => {
+    return Number(localStorage.getItem('pgd_station_count')) || 2;
+  });
+
+  const handleOpenDualScreen = (stationId: number = 1) => {
+    dualScreenSync.openCustomerDisplayWindow(stationId);
     soundService.playSuccessChime();
+    setShowStationMenu(false);
+  };
+
+  const handleSpawnNewStation = () => {
+    const nextStation = stationCount + 1;
+    setStationCount(nextStation);
+    localStorage.setItem('pgd_station_count', nextStation.toString());
+    dualScreenSync.openCustomerDisplayWindow(nextStation);
+    soundService.playSuccessChime();
+    setShowStationMenu(false);
   };
 
   return (
@@ -75,14 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Thu Ngân</span>
         </button>
 
-        <button
-          className={`nav-tab-btn ${activeTab === 'customer_display' ? 'active' : ''}`}
-          onClick={() => onTabChange('customer_display')}
-          title="Xem trước Màn hình phụ hướng ra khách (CFD)"
-        >
-          <Monitor size={15} />
-          <span>Màn Khách</span>
-        </button>
+        {/* Đã bỏ tab Màn Khách theo yêu cầu người dùng, dùng nút bung màn phụ trên thanh công cụ */}
 
         <button
           className={`nav-tab-btn ${activeTab === 'shelves' ? 'active' : ''}`}
@@ -167,16 +177,95 @@ export const Navbar: React.FC<NavbarProps> = ({
       </nav>
 
       <div className="nav-actions">
-        {/* Nút mở màn hình khách hàng trên màn hình phụ (Màn 2) */}
-        <button
-          className="btn btn-dual-screen"
-          style={{ padding: '6px 10px', fontSize: '0.78rem' }}
-          onClick={handleOpenDualScreen}
-          title="Mở tab/cửa sổ màn hình đối diện khách hàng ra màn hình thứ 2"
-        >
-          <ExternalLink size={13} />
-          <span>Màn Hình Phụ</span>
-        </button>
+        {/* Cụm nút mở/bung màn hình khách hàng trên màn hình phụ (Hỗ trợ 1 PC ra nhiều màn trạm) */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <button
+            className="btn btn-dual-screen"
+            style={{ padding: '6px 10px', fontSize: '0.78rem', borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+            onClick={() => handleOpenDualScreen(1)}
+            title="Mở tab/cửa sổ màn hình phụ Trạm 1"
+          >
+            <ExternalLink size={13} />
+            <span>Màn Hình Phụ</span>
+          </button>
+          <button
+            className="btn btn-dual-screen"
+            style={{ padding: '6px 6px', fontSize: '0.78rem', borderLeft: '1px solid rgba(255,255,255,0.2)', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+            onClick={() => setShowStationMenu(!showStationMenu)}
+            title="Bung thêm màn phụ cho các trạm Kiosk khác (Trạm 2, Trạm 3...)"
+          >
+            <ChevronDown size={13} />
+          </button>
+
+          {showStationMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                zIndex: 9999,
+                background: '#0f172a',
+                border: '1.5px solid var(--primary)',
+                borderRadius: '10px',
+                padding: '8px',
+                minWidth: '220px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', padding: '4px 8px', fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '4px' }}>
+                🖥️ CHỌN MÀN PHỤ CẦN BUNG:
+              </div>
+              {Array.from({ length: stationCount }, (_, i) => i + 1).map((stId) => (
+                <button
+                  key={stId}
+                  onClick={() => handleOpenDualScreen(stId)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#e2e8f0',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span>📺 Trạm {stId} {stId === 1 ? '(Quầy chính)' : `(Kiosk ${stId})`}</span>
+                  <ExternalLink size={12} color="var(--primary)" />
+                </button>
+              ))}
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '4px', paddingTop: '4px' }}>
+                <button
+                  onClick={handleSpawnNewStation}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid #10b981',
+                    color: '#10b981',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>Bung thêm Trạm {stationCount + 1} mới</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Bật tắt loa giọng nói */}
         <button

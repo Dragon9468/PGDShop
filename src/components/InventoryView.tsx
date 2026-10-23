@@ -13,6 +13,8 @@ import {
   generateWarehouseCode,
   explainShelfCode,
   WAREHOUSE_RACK_TYPES,
+  getWarehouseIcon,
+  getShelfIcon,
 } from '../services/locationService';
 import {
   Warehouse,
@@ -423,9 +425,9 @@ export const InventoryView: React.FC = () => {
                       📦 Lưu Kho Hàng Sỉ:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
-                      <b style={{ color: '#a5b4fc' }}>KS:</b> <span>Kệ sắt chịu lực (VD: <code>KHO01-KS01</code>)</span>
-                      <b style={{ color: '#a5b4fc' }}>KL:</b> <span>Kho lạnh / Tủ mát lưu kho</span>
-                      <b style={{ color: '#a5b4fc' }}>PL:</b> <span>Pallet sàn lưu kho</span>
+                      <b style={{ color: '#a5b4fc' }}>🏗️ KS:</b> <span>Kệ sắt chịu lực (VD: <code>KHO01-KS01</code>)</span>
+                      <b style={{ color: '#a5b4fc' }}>❄️ KL:</b> <span>Kho lạnh / Tủ mát lưu kho</span>
+                      <b style={{ color: '#a5b4fc' }}>📦 PL:</b> <span>Pallet sàn lưu kho</span>
                     </div>
                   </div>
 
@@ -434,12 +436,12 @@ export const InventoryView: React.FC = () => {
                       🏪 Kệ Trưng Bày Bán Lẻ:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
-                      <b style={{ color: '#38bdf8' }}>KE:</b> <span>Kệ hàng (VD: <code>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code>KE01-T1</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>TL:</b> <span>Tủ lạnh đông (VD: <code>TL01-T1</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>TM:</b> <span>Tủ mát (VD: <code>TM01-T1A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>MO:</b> <span>Pegboard móc treo (VD: <code>MO01-T1A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>RO:</b> <span>Rổ trái cây rau củ (VD: <code>RO01-A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>NC:</b> <span>Máy bán nước tự động (VD: <code>NC01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🗄️ KE:</b> <span>Kệ hàng (VD: <code>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code>KE01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🧊 TL:</b> <span>Tủ lạnh đông (VD: <code>TL01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🥛 TM:</b> <span>Tủ mát (VD: <code>TM01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🪝 MO:</b> <span>Pegboard móc treo (VD: <code>MO01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🧺 RO:</b> <span>Rổ trái cây rau củ (VD: <code>RO01-A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🥤 NC:</b> <span>Máy bán nước tự động (VD: <code>NC01-T1A</code>)</span>
                     </div>
                   </div>
                 </div>
@@ -679,10 +681,14 @@ export const InventoryView: React.FC = () => {
                         borderRadius: '6px',
                         fontFamily: 'var(--font-mono)',
                         cursor: 'help',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                       title={explainWarehouseCode(item.locationCode)}
                     >
-                      📍 {item.locationCode}
+                      <span style={{ fontSize: '0.82rem' }}>{getWarehouseIcon(item.locationCode)}</span>
+                      <span>{item.locationCode}</span>
                     </span>
 
                     {/* ĐVT quy cách lớn badge */}
@@ -710,7 +716,7 @@ export const InventoryView: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', color: '#a5b4fc', marginBottom: '6px' }}>
-                      <MapPin size={12} />
+                      <span style={{ fontSize: '0.8rem' }}>{getWarehouseIcon(item.locationCode)}</span>
                       <span style={{ fontWeight: 600 }}>{explainWarehouseCode(item.locationCode)}</span>
                     </div>
 

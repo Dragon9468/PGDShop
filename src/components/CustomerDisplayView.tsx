@@ -37,11 +37,20 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
     return localStorage.getItem('pgd_customer_theme') || settings.customerTheme || 'sunset-glow';
   });
 
+  // Lấy ID trạm từ URL (Ví dụ: /#/customer-display?station=2)
+  const stationId = React.useMemo(() => {
+    if (typeof window === 'undefined') return 1;
+    const search = window.location.hash.split('?')[1] || window.location.search.replace('?', '');
+    const params = new URLSearchParams(search);
+    return Number(params.get('station')) || 1;
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash.includes('customer-display')) {
       document.documentElement.setAttribute('data-theme', customerTheme);
+      document.title = `PGDShop - Màn Khách Trạm ${stationId}`;
     }
-  }, [customerTheme]);
+  }, [customerTheme, stationId]);
 
   // Trạng thái thanh toán
   const [isSuccess, setIsSuccess] = useState(false);
@@ -333,11 +342,14 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
         <>
           {/* CỘT TRÁI: GIỎ HÀNG THỰC TẾ CỦA KHÁCH */}
           <div className="cfd-column">
-            {/* Header gọn gàng: Tên shop & Trạng thái */}
+            {/* Header gọn gàng: Tên shop & Trạng thái & Mã Trạm */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Store size={22} color="var(--primary)" />
                 <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{settings.storeName}</span>
+                <span style={{ background: 'var(--accent)', color: 'var(--primary)', fontSize: '0.74rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 800, border: '1px solid var(--primary)' }}>
+                  📺 Trạm {stationId} {stationId === 1 ? '(Quầy)' : `(Kiosk ${stationId})`}
+                </span>
               </div>
               <span className={`badge ${checkoutStatus === 'AWAITING_PAYMENT' ? 'badge-primary' : 'badge-success'}`}>
                 {checkoutStatus === 'AWAITING_PAYMENT' ? '💳 Chờ Khách Quét QR' : '🛒 Đang Quét Hàng'}

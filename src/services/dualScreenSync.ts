@@ -183,12 +183,16 @@ class DualScreenSyncService {
   /**
    * Mở cửa sổ Màn hình hướng ra khách (Customer Facing Display) trên màn hình phụ
    */
-  public openCustomerDisplayWindow() {
+  /**
+   * Mở cửa sổ Màn hình hướng ra khách (Customer Facing Display) trên màn hình phụ (hỗ trợ nhiều trạm Station 1, 2, 3...)
+   */
+  public openCustomerDisplayWindow(stationId: number | string = 1) {
     if (typeof window === 'undefined') return;
-    const url = `${window.location.origin}/#/customer-display`;
-    // Mở popup với kích thước chuẩn 1280x800 hoặc toàn màn hình
+    const url = `${window.location.origin}/#/customer-display?station=${stationId}`;
+    // Mở popup với tên window riêng biệt theo trạm để Windows không bị ghi đè
+    const windowName = `PGDShopCustomerDisplay_Station_${stationId}`;
     const features = 'menubar=no,location=no,resizable=yes,scrollbars=yes,status=no,width=1280,height=800';
-    const newWindow = window.open(url, 'PGDShopCustomerDisplay', features);
+    const newWindow = window.open(url, windowName, features);
     if (newWindow) {
       newWindow.focus();
     }

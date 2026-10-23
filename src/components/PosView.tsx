@@ -21,7 +21,7 @@ import { printService } from '../services/printService';
 import { storageService } from '../services/storageService';
 import { vietqrService } from '../services/vietqrService';
 import { paymentWebhookService, WebhookBankTransaction } from '../services/paymentWebhookService';
-import { explainShelfCode } from '../services/locationService';
+import { explainShelfCode, getShelfIcon } from '../services/locationService';
 import confetti from 'canvas-confetti';
 
 interface PosViewProps {
@@ -453,9 +453,13 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                         color: '#38bdf8',
                         border: '1px solid rgba(56, 189, 248, 0.4)',
                         cursor: 'help',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
                       }}
                     >
-                      📍 {p.shelfCode}
+                      <span style={{ fontSize: '0.75rem' }}>{getShelfIcon(p.shelfCode)}</span>
+                      <span>{p.shelfCode}</span>
                     </div>
                   )}
                   {p.isPrepared && (

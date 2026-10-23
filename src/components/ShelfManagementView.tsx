@@ -25,6 +25,7 @@ import {
   DISPLAY_TYPES,
   explainShelfCode,
   generateShelfCode,
+  getShelfIcon,
 } from '../services/locationService';
 
 const PRESET_IMAGES = [
@@ -263,12 +264,12 @@ export const ShelfManagementView: React.FC = () => {
                       🏪 Kệ Trưng Bày Bán Lẻ:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
-                      <b style={{ color: '#38bdf8' }}>KE:</b> <span>Kệ hàng (VD: <code>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code>KE01-T1</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>TL:</b> <span>Tủ lạnh đông (VD: <code>TL01-T1</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>TM:</b> <span>Tủ mát (VD: <code>TM01-T1A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>MO:</b> <span>Pegboard móc treo (VD: <code>MO01-T1A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>RO:</b> <span>Rổ trái cây rau củ (VD: <code>RO01-A</code>)</span>
-                      <b style={{ color: '#38bdf8' }}>NC:</b> <span>Máy bán nước tự động (VD: <code>NC01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🗄️ KE:</b> <span>Kệ hàng (VD: <code>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code>KE01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🧊 TL:</b> <span>Tủ lạnh đông (VD: <code>TL01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🥛 TM:</b> <span>Tủ mát (VD: <code>TM01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🪝 MO:</b> <span>Pegboard móc treo (VD: <code>MO01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🧺 RO:</b> <span>Rổ trái cây rau củ (VD: <code>RO01-A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>🥤 NC:</b> <span>Máy bán nước tự động (VD: <code>NC01-T1A</code>)</span>
                     </div>
                   </div>
 
@@ -277,9 +278,9 @@ export const ShelfManagementView: React.FC = () => {
                       📦 Lưu Kho Hàng Sỉ:
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
-                      <b style={{ color: '#a5b4fc' }}>KS:</b> <span>Kệ sắt chịu lực (VD: <code>KHO01-KS01</code>)</span>
-                      <b style={{ color: '#a5b4fc' }}>KL:</b> <span>Kho lạnh / Tủ mát lưu kho</span>
-                      <b style={{ color: '#a5b4fc' }}>PL:</b> <span>Pallet sàn lưu kho</span>
+                      <b style={{ color: '#a5b4fc' }}>🏗️ KS:</b> <span>Kệ sắt chịu lực (VD: <code>KHO01-KS01</code>)</span>
+                      <b style={{ color: '#a5b4fc' }}>❄️ KL:</b> <span>Kho lạnh / Tủ mát lưu kho</span>
+                      <b style={{ color: '#a5b4fc' }}>📦 PL:</b> <span>Pallet sàn lưu kho</span>
                     </div>
                   </div>
                 </div>
@@ -465,10 +466,11 @@ export const ShelfManagementView: React.FC = () => {
                   {p.shelfCode && (
                     <span
                       className="product-tag shelf"
-                      style={{ fontSize: '0.68rem', padding: '2px 6px', cursor: 'help' }}
+                      style={{ fontSize: '0.72rem', padding: '2px 7px', cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       title={explainShelfCode(p.shelfCode)}
                     >
-                      📍 {p.shelfCode}
+                      <span style={{ fontSize: '0.82rem' }}>{getShelfIcon(p.shelfCode)}</span>
+                      <span>{p.shelfCode}</span>
                     </span>
                   )}
                 </div>
@@ -494,7 +496,7 @@ export const ShelfManagementView: React.FC = () => {
 
                   {p.shelfCode && (
                     <div style={{ fontSize: '0.72rem', color: '#38bdf8', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={11} />
+                      <span style={{ fontSize: '0.8rem' }}>{getShelfIcon(p.shelfCode)}</span>
                       <span style={{ fontWeight: 600 }}>{explainShelfCode(p.shelfCode)}</span>
                     </div>
                   )}
