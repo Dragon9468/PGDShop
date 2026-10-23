@@ -36,6 +36,7 @@ import {
   Truck,
   Image as ImageIcon,
   Coffee,
+  HelpCircle,
 } from 'lucide-react';
 
 const BULK_PRESET_IMAGES = [
@@ -58,6 +59,7 @@ export const InventoryView: React.FC = () => {
   // Tìm kiếm & Lọc
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [showCodeHelp, setShowCodeHelp] = useState(false);
 
   // Khóa an toàn: Mặc định khóa để ẩn nút sửa/xóa hàng trong kho
   const [isLocked, setIsLocked] = useState(true);
@@ -359,11 +361,90 @@ export const InventoryView: React.FC = () => {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
             <Warehouse size={28} color="#6366f1" />
-            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
               4. QUẢN LÝ KHO HÀNG
             </h1>
+
+            {/* Dấu hỏi nhỏ giải thích ký hiệu mã vị trí kho & kệ */}
+            <div
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+              onMouseEnter={() => setShowCodeHelp(true)}
+              onMouseLeave={() => setShowCodeHelp(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setShowCodeHelp(!showCodeHelp)}
+                style={{
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  border: '1.5px solid #818cf8',
+                  color: '#818cf8',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 6px rgba(99, 102, 241, 0.2)',
+                }}
+                title="Ký hiệu mã vị trí (Hover hoặc Click xem chi tiết)"
+              >
+                <HelpCircle size={15} />
+              </button>
+
+              {showCodeHelp && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 10px)',
+                    left: 0,
+                    zIndex: 9999,
+                    width: '360px',
+                    background: '#0b1329',
+                    border: '1.5px solid #818cf8',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(99, 102, 241, 0.25)',
+                    fontSize: '0.82rem',
+                    color: '#e2e8f0',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, color: '#818cf8', marginBottom: '8px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>💡 Ký Hiệu Quy Chuẩn Mã Vị Trí</span>
+                  </div>
+
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 700, color: '#a5b4fc', fontSize: '0.78rem', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid rgba(99, 102, 241, 0.2)', paddingBottom: '2px' }}>
+                      📦 Lưu Kho Hàng Sỉ:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
+                      <b style={{ color: '#a5b4fc' }}>KS:</b> <span>Kệ sắt chịu lực (VD: <code>KHO01-KS01</code>)</span>
+                      <b style={{ color: '#a5b4fc' }}>KL:</b> <span>Kho lạnh / Tủ mát lưu kho</span>
+                      <b style={{ color: '#a5b4fc' }}>PL:</b> <span>Pallet sàn lưu kho</span>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '8px' }}>
+                    <div style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.78rem', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '2px' }}>
+                      🏪 Kệ Trưng Bày Bán Lẻ:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.8rem' }}>
+                      <b style={{ color: '#38bdf8' }}>KE:</b> <span>Kệ hàng (VD: <code>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code>KE01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>TL:</b> <span>Tủ lạnh đông (VD: <code>TL01-T1</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>TM:</b> <span>Tủ mát (VD: <code>TM01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>MO:</b> <span>Pegboard móc treo (VD: <code>MO01-T1A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>RO:</b> <span>Rổ trái cây rau củ (VD: <code>RO01-A</code>)</span>
+                      <b style={{ color: '#38bdf8' }}>NC:</b> <span>Máy bán nước tự động (VD: <code>NC01-T1A</code>)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
