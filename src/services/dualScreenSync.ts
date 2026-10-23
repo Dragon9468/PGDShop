@@ -7,6 +7,7 @@ import { CartItem } from '../types';
 export type CheckoutStatus = 'SCANNING' | 'AWAITING_PAYMENT' | 'COMPLETED';
 
 export interface DualScreenMessage {
+  stationId?: number | string;
   type: 
     | 'SYNC_CART' 
     | 'SET_CHECKOUT_STATUS'
@@ -101,9 +102,11 @@ class DualScreenSyncService {
     discountAmount: number,
     finalAmount: number,
     orderCode: string,
-    checkoutStatus: CheckoutStatus = 'SCANNING'
+    checkoutStatus: CheckoutStatus = 'SCANNING',
+    stationId: number | string = 1
   ) {
     this.broadcast({
+      stationId,
       type: 'SYNC_CART',
       payload: {
         items,
@@ -119,8 +122,9 @@ class DualScreenSyncService {
   /**
    * Cập nhật trạng thái sinh mã QR thanh toán
    */
-  public setCheckoutStatus(checkoutStatus: CheckoutStatus, finalAmount: number) {
+  public setCheckoutStatus(checkoutStatus: CheckoutStatus, finalAmount: number, stationId: number | string = 1) {
     this.broadcast({
+      stationId,
       type: 'SET_CHECKOUT_STATUS',
       payload: {
         checkoutStatus,
@@ -132,8 +136,9 @@ class DualScreenSyncService {
   /**
    * Khách tự quét mã tại màn hình của khách -> gửi mã về màn hình thu ngân
    */
-  public customerScannedBarcode(barcode: string) {
+  public customerScannedBarcode(barcode: string, stationId: number | string = 1) {
     this.broadcast({
+      stationId,
       type: 'CUSTOMER_SCANNED_BARCODE',
       payload: {
         barcode,
@@ -144,8 +149,9 @@ class DualScreenSyncService {
   /**
    * Báo thanh toán thành công (Tự động hoặc Tiền mặt)
    */
-  public notifyPaymentSuccess(paymentMethod: 'CASH' | 'VIETQR', paidAmount: number, orderCode: string) {
+  public notifyPaymentSuccess(paymentMethod: 'CASH' | 'VIETQR', paidAmount: number, orderCode: string, stationId: number | string = 1) {
     this.broadcast({
+      stationId,
       type: 'PAYMENT_COMPLETED',
       payload: {
         paymentMethod,
@@ -159,8 +165,9 @@ class DualScreenSyncService {
   /**
    * Xóa giỏ hàng để đón khách tiếp theo
    */
-  public clearCart() {
+  public clearCart(stationId: number | string = 1) {
     this.broadcast({
+      stationId,
       type: 'CLEAR_CART',
       payload: {
         checkoutStatus: 'SCANNING',

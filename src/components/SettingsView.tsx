@@ -20,6 +20,12 @@ import {
   Sparkles,
   Printer,
   Monitor,
+  Usb,
+  Lock,
+  Unlock,
+  ExternalLink,
+  Shield,
+  Play,
 } from 'lucide-react';
 import { ThemePickerModal } from './ThemePickerModal';
 import { THEMES, CATEGORIES } from '../lib/themes';
@@ -36,6 +42,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
   const [savedAlert, setSavedAlert] = useState(false);
   const [testBarcodeInput, setTestBarcodeInput] = useState('');
   const [barcodeTestSuccess, setBarcodeTestSuccess] = useState<string | null>(null);
+
+  // Cấu hình Đa Trạm Multi-Station & Phần cứng Kiosk
+  const [selectedStation, setSelectedStation] = useState<number>(1);
+  const [stationModes, setStationModes] = useState<Record<number, boolean>>(() => ({
+    1: localStorage.getItem('pgd_kiosk_mode_1') === 'true',
+    2: localStorage.getItem('pgd_kiosk_mode_2') !== 'false', // Trạm 2 mặc định là Kiosk
+    3: localStorage.getItem('pgd_kiosk_mode_3') !== 'false',
+  }));
+  const [stationPrinters, setStationPrinters] = useState<Record<number, string>>(() => ({
+    1: localStorage.getItem('pgd_station_printer_1') || 'Máy In Bill Quầy 1 (USB001)',
+    2: localStorage.getItem('pgd_station_printer_2') || 'Máy In Bill Kiosk 2 (USB002)',
+    3: localStorage.getItem('pgd_station_printer_3') || 'Máy In Bill Kiosk 3 (USB003)',
+  }));
+  const [stationLocks, setStationLocks] = useState<Record<number, boolean>>(() => ({
+    1: localStorage.getItem('pgd_kiosk_locked_1') === 'true',
+    2: localStorage.getItem('pgd_kiosk_locked_2') === 'true',
+    3: localStorage.getItem('pgd_kiosk_locked_3') === 'true',
+  }));
+  const [adminPin, setAdminPin] = useState<string>(() => {
+    return localStorage.getItem('pgd_kiosk_pin') || '1234';
+  });
+  const [stationSerialStatus, setStationSerialStatus] = useState<Record<number, boolean>>({
+    1: false,
+    2: false,
+    3: false,
+  });
+  const [stationSerialTest, setStationSerialTest] = useState<Record<number, string>>({});
 
   // Theme states
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -65,12 +98,98 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
 
   const activeThemeObj = THEMES.find((t) => t.id === currentThemeId) || THEMES[0];
 
+  // Gán cổng USB Serial cho súng quét của trạm
+  const handlePairSerial = async (stationId: number) => {
+    if (!('serial' in navigator)) {
+      alert('Trình duyệt hiện tại không hỗ trợ Web Serial. Vui lòng mở trang này trên Google Chrome hoặc Microsoft Edge!');
+      return;
+    }
+    try {
+      const port = await (navigator as any).serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      setStationSerialStatus((prev) => ({ ...prev, [stationId]: true }));
+      soundService.playSuccessChime();
+      alert(`✅ Đã gán cổng USB thành công cho Trạm ${stationId}! Khi cắm súng quét ở cổng này, dữ liệu sẽ chỉ truyền riêng cho Trạm ${stationId}.`);
+
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          reader.releaseLock();
+          break;
+        }
+        if (value) {
+          buffer += value;
+          if (buffer.includes('\r') || buffer.includes('\n')) {
+            const lines = buffer.split(/[\r\n]+/);
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+              if (line.trim()) {
+                setStationSerialTest((prev) => ({
+                  ...prev,
+                  [stationId]: `Đã quét từ cổng Trạm ${stationId}: ${line.trim()} lúc ${new Date().toLocaleTimeString('vi-VN')}`,
+                }));
+                soundService.playBarcodeBeep();
+              }
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        console.warn('Serial error:', err);
+      }
+    }
+  };
+
+  // In thử bill test trên máy in của trạm
+  const handleTestPrintBill = (stationId: number) => {
+    const testOrder: any = {
+      id: 'test-' + Date.now(),
+      orderCode: `TEST-TRẠM-${stationId}`,
+      cashierName: `Test Trạm ${stationId} (${stationPrinters[stationId] || 'Mặc định'})`,
+      items: [
+        {
+          product: {
+            id: 'p1',
+            barcode: '8935001001',
+            name: `Hóa Đơn Test - Trạm ${stationId}`,
+            retailPrice: 25000,
+            unit: 'Ly',
+          },
+          quantity: 1,
+          subtotal: 25000,
+        },
+      ],
+      totalAmount: 25000,
+      discountAmount: 0,
+      finalAmount: 25000,
+      paymentMethod: 'CASH',
+      paymentStatus: 'PAID',
+      transferContent: `TEST TRAM ${stationId}`,
+      createdAt: new Date().toISOString(),
+    };
+    printService.printThermalReceipt(testOrder, settings);
+    soundService.playSuccessChime();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     storageService.saveSettings(formData);
     onUpdateSettings(formData);
     soundService.setEnabled(formData.isAudioEnabled);
     soundService.setVoiceRate(formData.voiceSpeed);
+
+    // Lưu cấu hình Đa Trạm Multi-Station vào localStorage
+    [1, 2, 3].forEach((sid) => {
+      localStorage.setItem('pgd_kiosk_mode_' + sid, String(stationModes[sid]));
+      localStorage.setItem('pgd_station_printer_' + sid, stationPrinters[sid]);
+      localStorage.setItem('pgd_kiosk_locked_' + sid, String(stationLocks[sid]));
+    });
+    localStorage.setItem('pgd_kiosk_pin', adminPin);
 
     setSavedAlert(true);
     soundService.playSuccessChime();
@@ -487,11 +606,255 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           </div>
         </div>
 
-        {/* 3. THỬ NGHIỆM THIẾT BỊ PHẦN CỨNG: LOA BLUETOOTH & SÚNG QUÉT */}
+        {/* 3. CẤU HÌNH ĐA TRẠM KIOSK & GÁN THIẾT BỊ PHẦN CỨNG (MULTI-STATION & HARDWARE) */}
+        <div className="glass-panel" style={{ padding: '20px', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '1.15rem', fontWeight: 800 }}>
+              <Usb size={22} />
+              <span>3. Cấu Hình Đa Trạm POS & Thiết Bị Phần Cứng (Cổng USB Súng Quét & Máy In Bill)</span>
+            </div>
+
+            {/* Nút bung mở màn hình trạm đang chọn */}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => dualScreenSync.openCustomerDisplayWindow(selectedStation)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.85rem' }}
+              title={`Mở cửa sổ màn hình phụ cho Trạm ${selectedStation} để kéo sang màn hình thứ ${selectedStation + 1}`}
+            >
+              <ExternalLink size={16} />
+              <span>Bung Màn Hình Phụ Trạm {selectedStation}</span>
+            </button>
+          </div>
+
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginBottom: '16px', lineHeight: 1.5 }}>
+            Quản lý tập trung mọi thiết bị ngoại vi trên 1 PC: Phân định máy quét barcode theo cổng USB (chống nhảy mã sang trạm khác), gán máy in bill đích danh cho từng trạm và thiết lập khóa Kiosk toàn màn hình an toàn.
+          </p>
+
+          {/* Tab chọn trạm */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+            {[1, 2, 3].map((sid) => (
+              <button
+                key={sid}
+                type="button"
+                onClick={() => setSelectedStation(sid)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  border: selectedStation === sid ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: selectedStation === sid ? 'var(--accent)' : 'rgba(255, 255, 255, 0.04)',
+                  color: selectedStation === sid ? 'var(--primary)' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Monitor size={16} />
+                <span>Trạm {sid} {sid === 1 ? '(Quầy Thu Ngân)' : `(Kiosk Tự Phục Vụ ${sid})`}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Chi tiết cấu hình cho Trạm đang chọn */}
+          <div style={{ background: 'rgba(0, 0, 0, 0.25)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* A. Chế độ hoạt động */}
+            <div>
+              <label style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px', display: 'block' }}>
+                ⚙️ A. Chế Độ Vận Hành Trạm {selectedStation}:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  background: !stationModes[selectedStation] ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                  border: !stationModes[selectedStation] ? '1.5px solid #38bdf8' : '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="radio"
+                    name={`kioskMode_${selectedStation}`}
+                    checked={!stationModes[selectedStation]}
+                    onChange={() => setStationModes((prev) => ({ ...prev, [selectedStation]: false }))}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      Màn Hình Phụ Đối Diện Khách (Đồng Bộ Quầy)
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Nhân viên thu ngân đứng quầy quét hàng trên máy chính, màn hình phụ tự động hiển thị giỏ hàng và mã VietQR cho khách xem.
+                    </div>
+                  </div>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  background: stationModes[selectedStation] ? 'rgba(118, 254, 40, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                  border: stationModes[selectedStation] ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="radio"
+                    name={`kioskMode_${selectedStation}`}
+                    checked={stationModes[selectedStation]}
+                    onChange={() => setStationModes((prev) => ({ ...prev, [selectedStation]: true }))}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--primary)' }}>
+                      Kiosk Tự Phục Vụ Độc Lập (Self-Checkout Kiosk)
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Khách tự bóp cò súng quét lên từng sản phẩm, tự quét lệnh THANHTOAN để sinh VietQR nạp sẵn đúng số tiền, tự chốt đơn và in bill riêng.
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* B. Gán Cổng USB Súng Quét Barcode (Web Serial) */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Usb size={16} />
+                  <span>B. Cổng USB Máy Quét Barcode Gán Riêng Cho Trạm {selectedStation}:</span>
+                </label>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: stationSerialStatus[selectedStation] ? '#dcfce7' : '#fee2e2',
+                  color: stationSerialStatus[selectedStation] ? '#15803d' : '#b91c1c',
+                }}>
+                  {stationSerialStatus[selectedStation] ? '🟢 ĐÃ KẾT NỐI CỔNG COM RIÊNG' : '⚪ DÙNG CỔNG BÀN PHÍM CHUNG'}
+                </span>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
+                Khi cắm 2-3 súng quét trên cùng 1 PC, quét mã <b>USB Virtual COM</b> trên sổ tay súng quét rồi bấm nút dưới để gán cổng cho Trạm {selectedStation}. Mã quét sẽ truyền trực tiếp vào trạm này mà không bị nhảy nhầm hay cướp chuột!
+              </p>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handlePairSerial(selectedStation)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  <Usb size={16} color="#10b981" />
+                  <span>{stationSerialStatus[selectedStation] ? 'Đổi Cổng USB Khác' : `Chọn Cổng USB Cho Máy Quét Trạm ${selectedStation}`}</span>
+                </button>
+                {stationSerialTest[selectedStation] && (
+                  <span style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
+                    ✅ {stationSerialTest[selectedStation]}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* C. Máy In Bill Gán Cho Trạm */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+              <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#38bdf8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Printer size={16} />
+                <span>C. Tên Máy In Bill Riêng Cho Trạm {selectedStation}:</span>
+              </label>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={stationPrinters[selectedStation] || ''}
+                  onChange={(e) => setStationPrinters((prev) => ({ ...prev, [selectedStation]: e.target.value }))}
+                  placeholder={`Ví dụ: Máy In Bill Trạm ${selectedStation} (USB00${selectedStation})`}
+                  style={{ flex: 1, minWidth: '240px', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', fontSize: '0.88rem' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleTestPrintBill(selectedStation)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '0.85rem' }}
+                >
+                  <Printer size={15} color="#38bdf8" />
+                  <span>In Thử Bill Test Trạm {selectedStation}</span>
+                </button>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Khi khách ở Trạm {selectedStation} thanh toán xong, hóa đơn sẽ tự động gửi lệnh in ra máy in này.
+              </div>
+            </div>
+
+            {/* D. Khóa Kiosk Toàn Màn Hình & Mã PIN */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Lock size={16} />
+                  <span>D. Chế Độ Khóa Màn Hình Kiosk (Chống Khách Tắt Web / Bấm Linh Tinh):</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: stationLocks[selectedStation] ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                  border: stationLocks[selectedStation] ? '1.5px solid #ef4444' : '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={stationLocks[selectedStation]}
+                    onChange={(e) => setStationLocks((prev) => ({ ...prev, [selectedStation]: e.target.checked }))}
+                  />
+                  <div>
+                    <span style={{ fontWeight: 800, fontSize: '0.88rem', color: stationLocks[selectedStation] ? '#f87171' : 'var(--text-primary)' }}>
+                      {stationLocks[selectedStation] ? '🔒 Bật Khóa Kiosk Toàn Màn Hình' : '🔓 Tắt Khóa (Mở Bình Thường)'}
+                    </span>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Chặn chuột phải, chặn phím tắt F11, F12, Ctrl+W, Alt+F4 và khóa bôi đen chữ.
+                    </div>
+                  </div>
+                </label>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <Shield size={14} color="#f59e0b" />
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Mã PIN Quản Trị Mở Khóa Kiosk:</span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value)}
+                    placeholder="1234"
+                    style={{ width: '100%', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)', color: 'var(--primary)', borderRadius: '8px', fontFamily: 'var(--font-mono)', letterSpacing: '4px', fontWeight: 800 }}
+                  />
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Trên màn khách, quản lý chạm 3 lần vào logo shop hoặc bấm <code>Ctrl + Shift + K</code> để mở bàn phím nhập PIN.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* 4. THỬ NGHIỆM THIẾT BỊ PHẦN CỨNG: LOA BLUETOOTH & SÚNG QUÉT */}
         <div className="glass-panel" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: '#f59e0b', fontSize: '1.1rem', fontWeight: 700 }}>
             <Volume2 size={20} />
-            <span>3. Kiểm Tra Thiết Bị Quầy (Loa Bluetooth & Súng Quét Barcode)</span>
+            <span>4. Kiểm Tra Thiết Bị Quầy (Loa Bluetooth & Súng Quét Barcode)</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -540,14 +903,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           </div>
         </div>
 
-        {/* 4. HƯỚNG DẪN TRIỂN KHAI CLOUDFLARE, GITHUB VÀ ANDROID */}
+        {/* 5. HƯỚNG DẪN TRIỂN KHAI KIOSK, CLOUDFLARE, GITHUB VÀ ANDROID */}
         <div className="glass-panel" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: '#8b5cf6', fontSize: '1.1rem', fontWeight: 700 }}>
             <Terminal size={20} />
-            <span>4. Hướng Dẫn Vận Hành PC Desktop, Web Cloudflare & App Android</span>
+            <span>5. Hướng Dẫn Vận Hành PC Desktop, Kiosk Tự Khởi Động & Cloudflare</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', fontSize: '0.85rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', fontSize: '0.85rem' }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px' }}>
+              <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Monitor size={16} />
+                <span>Khởi Động Kiosk Toàn Màn</span>
+              </div>
+              <p style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                Chạy <code>scripts/start-kiosk-stations.bat</code> để mở Chrome ở chế độ <code>--kiosk</code> (giấu thanh URL, giấu nút X tắt web, chống thoát màn hình).
+              </p>
+            </div>
+
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px' }}>
               <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Globe size={16} />
@@ -569,12 +942,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
             </div>
 
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px' }}>
-              <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontWeight: 700, color: '#a855f7', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Smartphone size={16} />
                 <span>Xuất App Android (APK)</span>
               </div>
               <p style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
-                Chạy <code>npm run build</code> rồi <code>npx cap add android</code> và <code>npx cap open android</code> để build file cài đặt APK cho điện thoại và máy tính bảng.
+                Chạy <code>npm run build</code> rồi <code>npx cap add android</code> và <code>npx cap open android</code> để build file cài đặt APK cho điện thoại.
               </p>
             </div>
           </div>

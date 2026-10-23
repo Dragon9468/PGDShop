@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShelfLocation, Product, ProductCategory } from '../types';
 import { storageService } from '../services/storageService';
+import { soundService } from '../services/soundService';
+import { barcodeLookupService } from '../services/barcodeLookupService';
 import {
   Layers,
   Plus,
@@ -78,6 +80,38 @@ export const ShelfManagementView: React.FC = () => {
     isPrepared: false,
     imageUrl: '',
   });
+
+  const [isLookingUpBarcode, setIsLookingUpBarcode] = useState(false);
+  const [lookupFeedback, setLookupFeedback] = useState<string | null>(null);
+
+  const handleLookupBarcode = async (codeToLookup?: string) => {
+    const bc = (codeToLookup || productForm.barcode || '').trim();
+    if (!bc) return;
+    setIsLookingUpBarcode(true);
+    setLookupFeedback(null);
+    try {
+      const res = await barcodeLookupService.lookup(bc);
+      if (res) {
+        setProductForm((prev) => ({
+          ...prev,
+          barcode: bc,
+          name: res.name || prev.name,
+          unit: res.unit || prev.unit,
+          category: (res.category as any) || prev.category,
+          imageUrl: res.imageUrl || prev.imageUrl,
+        }));
+        setLookupFeedback(`✅ Tìm thấy: ${res.name} (${res.source === 'LOCAL_DICTIONARY' ? 'Từ điển Việt Nam' : 'Open Food Facts'})`);
+        soundService.playSuccessChime();
+      } else {
+        setLookupFeedback('⚠️ Chưa có trên Database online. Bạn có thể tự điền tên và giá bên dưới!');
+        soundService.speakVietnamese('Không tìm thấy thông tin online cho mã vạch này');
+      }
+    } catch (e) {
+      setLookupFeedback('Lỗi tra cứu mạng');
+    } finally {
+      setIsLookingUpBarcode(false);
+    }
+  };
 
   useEffect(() => {
     setShelves(storageService.getShelves());
@@ -707,16 +741,54 @@ export const ShelfManagementView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Mã Barcode:</label>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Mã Barcode:</label>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Bóp cò súng hoặc gõ mã</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       type="text"
                       required
+                      placeholder="Quét mã vạch..."
                       value={productForm.barcode || ''}
                       onChange={(e) => setProductForm({ ...productForm, barcode: e.target.value })}
-                      style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleLookupBarcode(productForm.barcode);
+                        }
+                      }}
+                      style={{ flex: 1, padding: '8px', fontFamily: 'var(--font-mono)' }}
                     />
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleLookupBarcode(productForm.barcode)}
+                      disabled={isLookingUpBarcode}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        border: '1px solid #38bdf8',
+                        color: '#38bdf8',
+                        cursor: 'pointer'
+                      }}
+                      title="Tự động tra cứu tên sản phẩm, ảnh mẫu và đơn vị tính từ mã vạch (Open Food Facts / GS1)"
+                    >
+                      <Search size={14} />
+                      <span>{isLookingUpBarcode ? 'Đang Tra...' : 'Tra Cứu Online'}</span>
+                    </button>
                   </div>
+                  {lookupFeedback && (
+                    <div style={{ fontSize: '0.74rem', color: lookupFeedback.startsWith('✅') ? '#10b981' : '#f59e0b', marginTop: '4px', lineHeight: 1.3 }}>
+                      {lookupFeedback}
+                    </div>
+                  )}
                 </div>
               </div>
 
