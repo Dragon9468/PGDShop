@@ -530,9 +530,9 @@ const INITIAL_RECIPES: PreparedRecipe[] = [
     standardCost: 6500,
     retailPrice: 25000,
     ingredients: [
-      { id: 'i1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200 },
-      { id: 'i2', ingredientName: 'Sữa đặc Ngôi sao', unit: 'ml', quantityNeeded: 25, costPerUnit: 70 },
-      { id: 'i3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200 },
+      { id: 'i1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200, warehouseItemId: 'wh-item-01', warehouseLocationCode: 'KHO01-KS02' },
+      { id: 'i2', ingredientName: 'Sữa đặc Phương Nam', unit: 'ml', quantityNeeded: 25, costPerUnit: 70, warehouseItemId: 'wh-item-03', warehouseLocationCode: 'KHO01-KS01' },
+      { id: 'i3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200, warehouseItemId: 'wh-item-04', warehouseLocationCode: 'KHO01-KS03' },
     ],
   },
   {
@@ -544,10 +544,10 @@ const INITIAL_RECIPES: PreparedRecipe[] = [
     standardCost: 8500,
     retailPrice: 35000,
     ingredients: [
-      { id: 'i4', ingredientName: 'Cốt trà túi lọc Cozy', unit: 'gói', quantityNeeded: 1, costPerUnit: 2200 },
-      { id: 'i5', ingredientName: 'Đào ngâm miếng Kronos', unit: 'miếng', quantityNeeded: 2, costPerUnit: 2500 },
-      { id: 'i6', ingredientName: 'Cam vàng & Sả tươi', unit: 'phần', quantityNeeded: 1, costPerUnit: 2000 },
-      { id: 'i7', ingredientName: 'Bộ Ly 500ml nắp cầu + ống hút to', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1800 },
+      { id: 'i4', ingredientName: 'Cốt trà túi lọc Cozy', unit: 'gói', quantityNeeded: 1, costPerUnit: 2200, warehouseLocationCode: 'KHO01-KL01' },
+      { id: 'i5', ingredientName: 'Đào ngâm miếng Kronos', unit: 'miếng', quantityNeeded: 2, costPerUnit: 2500, warehouseLocationCode: 'KHO01-KL01' },
+      { id: 'i6', ingredientName: 'Cam vàng & Sả tươi', unit: 'phần', quantityNeeded: 1, costPerUnit: 2000, warehouseLocationCode: 'KHO01-KL01' },
+      { id: 'i7', ingredientName: 'Bộ Ly 500ml nắp cầu + ống hút to', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1800, warehouseItemId: 'wh-item-04', warehouseLocationCode: 'KHO01-KS03' },
     ],
   },
 ];

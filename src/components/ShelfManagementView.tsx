@@ -413,22 +413,13 @@ export const ShelfManagementView: React.FC = () => {
                     </div>
                   )}
 
-                  {p.shelfCode && !p.isPrepared && (
+                  {p.shelfCode && (
                     <span
                       className="product-tag shelf"
                       style={{ fontSize: '0.68rem', padding: '2px 6px', cursor: 'help' }}
                       title={explainShelfCode(p.shelfCode)}
                     >
                       📍 {p.shelfCode}
-                    </span>
-                  )}
-                  {p.isPrepared && (
-                    <span
-                      className="product-tag"
-                      style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(245, 158, 11, 0.9)', color: '#000', fontWeight: 700 }}
-                      title="Món chế biến tại quầy - Bán tại chỗ không qua kệ"
-                    >
-                      ☕ Chế Biến Tại Chỗ
                     </span>
                   )}
                 </div>
@@ -452,15 +443,10 @@ export const ShelfManagementView: React.FC = () => {
                     {p.name}
                   </div>
 
-                  {p.shelfCode && !p.isPrepared && (
+                  {p.shelfCode && (
                     <div style={{ fontSize: '0.72rem', color: '#38bdf8', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MapPin size={11} />
                       <span style={{ fontWeight: 600 }}>{explainShelfCode(p.shelfCode)}</span>
-                    </div>
-                  )}
-                  {p.isPrepared && (
-                    <div style={{ fontSize: '0.72rem', color: '#f59e0b', marginBottom: '4px', fontStyle: 'italic' }}>
-                      (Bán trực tiếp - Không gán vị trí kệ)
                     </div>
                   )}
 

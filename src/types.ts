@@ -78,6 +78,8 @@ export interface RecipeIngredient {
   unit: string;
   quantityNeeded: number;
   costPerUnit: number;
+  warehouseItemId?: string; // ID nguyên vật liệu trong kho (chỉ lấy từ kho, không lấy từ kệ)
+  warehouseLocationCode?: string; // Vị trí kho xuất nguyên liệu (VD: KHO01-KS01)
 }
 
 export interface PreparedRecipe {

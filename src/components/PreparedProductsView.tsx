@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PreparedRecipe, RecipeIngredient, Product } from '../types';
+import { PreparedRecipe, RecipeIngredient, Product, WarehouseItem } from '../types';
 import { storageService } from '../services/storageService';
 import {
   Coffee,
@@ -14,6 +14,7 @@ import {
   Sparkles,
   Image as ImageIcon,
   CheckCircle,
+  Package,
 } from 'lucide-react';
 
 const PRESET_FB_IMAGES = [
@@ -28,6 +29,7 @@ const PRESET_FB_IMAGES = [
 export const PreparedProductsView: React.FC = () => {
   const [recipes, setRecipes] = useState<PreparedRecipe[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<PreparedRecipe | null>(null);
+  const [warehouseItems, setWarehouseItems] = useState<WarehouseItem[]>([]);
 
   // Modal Thêm / Sửa Công thức món chế biến
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,14 +41,15 @@ export const PreparedProductsView: React.FC = () => {
   const [formInstructions, setFormInstructions] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formIngredients, setFormIngredients] = useState<RecipeIngredient[]>([
-    { id: 'ing-1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200 },
-    { id: 'ing-2', ingredientName: 'Sữa đặc Phương Nam', unit: 'ml', quantityNeeded: 25, costPerUnit: 70 },
-    { id: 'ing-3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200 },
+    { id: 'ing-1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200, warehouseItemId: 'wh-item-01', warehouseLocationCode: 'KHO01-KS02' },
+    { id: 'ing-2', ingredientName: 'Sữa đặc Phương Nam', unit: 'ml', quantityNeeded: 25, costPerUnit: 70, warehouseItemId: 'wh-item-03', warehouseLocationCode: 'KHO01-KS01' },
+    { id: 'ing-3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200, warehouseItemId: 'wh-item-04', warehouseLocationCode: 'KHO01-KS03' },
   ]);
 
   const loadData = () => {
     const list = storageService.getRecipes();
     setRecipes(list);
+    setWarehouseItems(storageService.getWarehouseItems());
     if (list.length > 0) {
       if (!selectedRecipe || !list.find((r) => r.id === selectedRecipe.id)) {
         setSelectedRecipe(list[0]);
@@ -74,12 +77,12 @@ export const PreparedProductsView: React.FC = () => {
     setFormName('');
     setFormPrice(25000);
     setFormTime(3);
-    setFormInstructions('1. Chuẩn bị nguyên liệu theo định lượng. 2. Pha chế theo công thức. 3. Đóng nắp ly và phục vụ khách.');
+    setFormInstructions('1. Chuẩn bị nguyên liệu từ kho theo định lượng. 2. Pha chế theo công thức. 3. Phục vụ khách.');
     setFormImageUrl(PRESET_FB_IMAGES[0].url);
     setFormIngredients([
-      { id: 'ing-1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200 },
-      { id: 'ing-2', ingredientName: 'Sữa đặc Phương Nam', unit: 'ml', quantityNeeded: 25, costPerUnit: 70 },
-      { id: 'ing-3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200 },
+      { id: 'ing-1', ingredientName: 'Cà phê hạt Robusta Blend', unit: 'gram', quantityNeeded: 20, costPerUnit: 200, warehouseItemId: 'wh-item-01', warehouseLocationCode: 'KHO01-KS02' },
+      { id: 'ing-2', ingredientName: 'Sữa đặc Phương Nam', unit: 'ml', quantityNeeded: 25, costPerUnit: 70, warehouseItemId: 'wh-item-03', warehouseLocationCode: 'KHO01-KS01' },
+      { id: 'ing-3', ingredientName: 'Bộ Ly giấy + Nắp + Ống hút', unit: 'bộ', quantityNeeded: 1, costPerUnit: 1200, warehouseItemId: 'wh-item-04', warehouseLocationCode: 'KHO01-KS03' },
     ]);
     setIsModalOpen(true);
   };
@@ -105,6 +108,7 @@ export const PreparedProductsView: React.FC = () => {
         unit: 'gram',
         quantityNeeded: 10,
         costPerUnit: 100,
+        warehouseLocationCode: 'KHO01-KS01',
       },
     ]);
   };
@@ -116,6 +120,25 @@ export const PreparedProductsView: React.FC = () => {
   const handleIngredientChange = (index: number, field: keyof RecipeIngredient, value: any) => {
     const updated = [...formIngredients];
     updated[index] = { ...updated[index], [field]: value };
+    setFormIngredients(updated);
+  };
+
+  const handleSelectWarehouseItem = (index: number, whId: string) => {
+    const wh = warehouseItems.find((w) => w.id === whId);
+    const updated = [...formIngredients];
+    if (wh) {
+      updated[index] = {
+        ...updated[index],
+        warehouseItemId: wh.id,
+        ingredientName: updated[index].ingredientName || wh.name,
+        warehouseLocationCode: wh.locationCode,
+      };
+    } else {
+      updated[index] = {
+        ...updated[index],
+        warehouseItemId: undefined,
+      };
+    }
     setFormIngredients(updated);
   };
 
@@ -218,27 +241,6 @@ export const PreparedProductsView: React.FC = () => {
           <Plus size={18} />
           <span>Thêm Món Chế Biến Mới (F&B)</span>
         </button>
-      </div>
-
-      {/* THÔNG BÁO QUY CHUẨN VỊ TRÍ CHO HÀNG CHẾ BIẾN */}
-      <div
-        className="glass-panel"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '12px 18px',
-          marginBottom: '20px',
-          background: 'rgba(245, 158, 11, 0.08)',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          borderRadius: '10px',
-        }}
-      >
-        <div style={{ fontSize: '1.4rem' }}>📍</div>
-        <div style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          <strong style={{ color: '#f59e0b' }}>Quy Chuẩn Mã Vị Trí:</strong> Món chế biến/pha chế tại quầy{' '}
-          <strong style={{ color: 'var(--text-primary)' }}>không gán mã vị trí kệ/kho</strong> vì được pha chế &amp; bán trực tiếp tại chỗ cho khách khi gọi món. Nguyên liệu đầu vào (cà phê hạt, sữa đặc, siro, ly nắp...) được lưu tại kho <span style={{ color: '#38bdf8', fontWeight: 600 }}>KHO01-KS01</span> hoặc tủ mát <span style={{ color: '#38bdf8', fontWeight: 600 }}>TM01-T1A</span>.
-        </div>
       </div>
 
       {/* GIAO DIỆN CHIA 2 CỘT: DANH SÁCH MENU MÓN <-> CHI TIẾT ĐỊNH LƯỢNG (BOM) */}
@@ -419,6 +421,7 @@ export const PreparedProductsView: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Nguyên liệu</th>
+                    <th>Nguồn kho</th>
                     <th>ĐVT</th>
                     <th>Định lượng / Phần</th>
                     <th>Đơn giá vốn</th>
@@ -431,6 +434,11 @@ export const PreparedProductsView: React.FC = () => {
                     return (
                       <tr key={ing.id}>
                         <td style={{ fontWeight: 600 }}>{ing.ingredientName}</td>
+                        <td>
+                          <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: 600 }}>
+                            📍 {ing.warehouseLocationCode || 'KHO01-KS01'}
+                          </span>
+                        </td>
                         <td>{ing.unit}</td>
                         <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{ing.quantityNeeded}</td>
                         <td style={{ fontFamily: 'var(--font-mono)' }}>
@@ -445,7 +453,7 @@ export const PreparedProductsView: React.FC = () => {
                 </tbody>
                 <tfoot>
                   <tr style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-                    <td colSpan={4} style={{ fontWeight: 700, textAlign: 'right' }}>
+                    <td colSpan={5} style={{ fontWeight: 700, textAlign: 'right' }}>
                       TỔNG CHI PHÍ NGUYÊN LIỆU CHO 1 PHẦN (COST):
                     </td>
                     <td style={{ fontWeight: 900, fontSize: '1.15rem', color: '#f87171', fontFamily: 'var(--font-mono)' }}>
@@ -580,17 +588,30 @@ export const PreparedProductsView: React.FC = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {formIngredients.map((ing, idx) => (
-                    <div key={ing.id || idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 36px', gap: '8px', alignItems: 'center' }}>
+                    <div key={ing.id || idx} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.4fr 0.8fr 0.9fr 1fr 36px', gap: '8px', alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Tên nguyên liệu (VD: Sữa đặc)"
+                        placeholder="Tên nguyên liệu"
                         value={ing.ingredientName}
                         onChange={(e) => handleIngredientChange(idx, 'ingredientName', e.target.value)}
                         style={{ padding: '6px 8px', fontSize: '0.85rem' }}
                       />
+                      <select
+                        value={ing.warehouseItemId || ''}
+                        onChange={(e) => handleSelectWarehouseItem(idx, e.target.value)}
+                        style={{ padding: '6px 8px', fontSize: '0.82rem' }}
+                        title="Chọn nguyên liệu trực tiếp từ kho hàng"
+                      >
+                        <option value="">-- Kho xuất --</option>
+                        {warehouseItems.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name} ({w.locationCode})
+                          </option>
+                        ))}
+                      </select>
                       <input
                         type="text"
-                        placeholder="ĐVT (ml, g)"
+                        placeholder="ĐVT"
                         value={ing.unit}
                         onChange={(e) => handleIngredientChange(idx, 'unit', e.target.value)}
                         style={{ padding: '6px 8px', fontSize: '0.85rem' }}

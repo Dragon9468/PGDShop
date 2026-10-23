@@ -460,7 +460,6 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                   )}
                   {p.isPrepared && (
                     <div
-                      title="Món chế biến tại chỗ - Bán trực tiếp không qua kệ"
                       style={{
                         position: 'absolute',
                         bottom: '4px',
@@ -471,10 +470,9 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                         fontSize: '0.65rem',
                         fontWeight: 700,
                         color: '#000',
-                        cursor: 'help',
                       }}
                     >
-                      ☕ Pha Chế Tại Chỗ
+                      ☕ Chế biến
                     </div>
                   )}
                 </div>
@@ -506,7 +504,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
                     {new Intl.NumberFormat('vi-VN').format(p.retailPrice)}đ
                   </div>
                   <div className="product-stock" style={{ marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{p.isPrepared ? '☕ Pha chế tại chỗ' : `Tồn: ${p.stockQuantity} ${p.unit}`}</span>
+                    <span>{p.isPrepared ? '☕ Chế biến' : `Tồn: ${p.stockQuantity} ${p.unit}`}</span>
                     {p.shelfCode && (
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }} title={explainShelfCode(p.shelfCode)}>
                         {p.shelfCode}
