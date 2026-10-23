@@ -431,15 +431,15 @@ export const ShelfManagementView: React.FC = () => {
                   borderRadius: '10px',
                 }}
               >
-                {/* Ảnh sản phẩm */}
+                {/* Ảnh sản phẩm - Khung vuông 1:1 chống cắt ảnh */}
                 <div
                   style={{
                     width: '100%',
-                    height: '115px',
+                    aspectRatio: '1 / 1',
                     borderRadius: '8px',
                     overflow: 'hidden',
                     position: 'relative',
-                    background: 'rgba(125, 125, 125, 0.1)',
+                    background: 'rgba(125, 125, 125, 0.08)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

@@ -422,7 +422,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               title={`Click để thêm ${p.name}`}
             >
               {p.imageUrl && (
-                <div style={{ position: 'relative', width: '100%', height: '90px', overflow: 'hidden' }}>
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', overflow: 'hidden' }}>
                   <img
                     src={p.imageUrl}
                     alt={p.name}

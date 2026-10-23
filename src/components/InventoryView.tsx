@@ -633,11 +633,11 @@ export const InventoryView: React.FC = () => {
                     border: isLowStock ? '1.5px solid rgba(239, 68, 68, 0.5)' : '1px solid var(--border-color)',
                   }}
                 >
-                  {/* Ảnh quy cách sỉ */}
+                  {/* Ảnh quy cách sỉ - Khung vuông 1:1 chống cắt ảnh */}
                   <div
                     style={{
                       width: '100%',
-                      height: '130px',
+                      aspectRatio: '1 / 1',
                       borderRadius: '8px',
                       overflow: 'hidden',
                       position: 'relative',
