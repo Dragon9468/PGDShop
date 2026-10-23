@@ -44,24 +44,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   isAudioOn,
   onToggleAudio,
 }) => {
-  const [time, setTime] = useState<string>('');
-
   useEffect(() => {
     // Đọc theme đã lưu
     const saved = localStorage.getItem('pgd_theme') || 'cyber-neon';
     document.documentElement.setAttribute('data-theme', saved);
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      setTime(
-        now.toLocaleTimeString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   const handleOpenDualScreen = () => {
@@ -189,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="Mở tab/cửa sổ màn hình đối diện khách hàng ra màn hình thứ 2"
         >
           <ExternalLink size={13} />
-          <span>Màn Hình Phụ (CFD)</span>
+          <span>Màn Hình Phụ</span>
         </button>
 
         {/* Bật tắt loa giọng nói */}
@@ -201,23 +187,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           {isAudioOn ? <Volume2 size={15} color="var(--primary)" /> : <VolumeX size={15} color="#ef4444" />}
         </button>
-
-        {/* Đồng hồ */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            fontSize: '0.76rem',
-            color: 'var(--text-muted)',
-            padding: '3px 6px',
-            borderRadius: '4px',
-            background: 'rgba(255, 255, 255, 0.04)',
-          }}
-        >
-          <div className="pulse-dot"></div>
-          <span style={{ fontFamily: 'var(--font-mono)' }}>{time}</span>
-        </div>
       </div>
     </header>
   );

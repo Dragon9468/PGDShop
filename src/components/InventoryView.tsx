@@ -362,12 +362,9 @@ export const InventoryView: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Warehouse size={28} color="#6366f1" />
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              4. QUẢN LÝ KHO HÀNG (QUY CÁCH SỈ: THÙNG / KG / LÍT / CAN)
+              4. QUẢN LÝ KHO HÀNG
             </h1>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Quản lý hàng lưu kho theo vị trí ô kệ kho, giá nhập sỉ và quy cách sỉ lớn (Thùng, Bao, Kg, Lít). Xuất kho lên kệ bán lẻ.
-          </p>
         </div>
 
         {/* CỤM NÚT THAO TÁC & NÚT MỞ MENU LỊCH SỬ NHẬP KHO RIÊNG */}
@@ -444,32 +441,6 @@ export const InventoryView: React.FC = () => {
               </button>
             )
           )}
-        </div>
-      </div>
-
-      {/* THANH THÔNG TIN QUY CHUẨN MÃ VỊ TRÍ KHO HÀNG */}
-      <div
-        style={{
-          background: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.25)',
-          borderRadius: '10px',
-          padding: '12px 16px',
-          marginBottom: '18px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px',
-          fontSize: '0.86rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a5b4fc', fontWeight: 800 }}>
-          <MapPin size={18} />
-          <span>QUY CHUẨN MÃ VỊ TRÍ KHO HÀNG (ĐÃ CẬP NHẬT)</span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-          <span><b>🏗️ Định dạng chuẩn:</b> <code style={{ color: '#a5b4fc', fontWeight: 800 }}>KHO01-KS01</code> 👉 <i>Dịch ra: Kho 01 (hỗ trợ nhiều kho/cửa hàng sau này) • Kệ sắt 01</i></span>
-          <span>• <b>KS:</b> Kệ sắt chịu lực (chứa thùng sỉ, bao lớn)</span>
-          <span>• <b>KL:</b> Kho lạnh / Tủ mát lưu kho</span>
-          <span>• <b>PL:</b> Pallet sàn</span>
         </div>
       </div>
 

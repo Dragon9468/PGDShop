@@ -314,7 +314,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '1.15rem', fontWeight: 800 }}>
               <Barcode size={22} />
-              <span>2 Mã Vạch Lệnh Tiện Ích Cố Định Quầy & Máy In Barcode</span>
+              <span>2 Mã Vạch Lệnh</span>
             </div>
 
             <button
@@ -324,25 +324,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               style={{ background: '#10b981', color: '#040d06', fontWeight: 800, padding: '10px 18px', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)' }}
             >
               <Printer size={16} />
-              <span>IN 2 TEM RA MÁY IN BARCODE / BILL K80</span>
+              <span>IN 2 TEM</span>
             </button>
           </div>
-
-          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
-            Hệ thống đã thiết lập cố định 2 mã barcode lệnh: <b>THANHTOAN</b> (Chốt đơn sinh mã VietQR động đúng số tiền, nhận tiền tự động qua Webhook) và <b>XOA</b> (Hoàn tác 1 số lượng món vừa bóp cò nhầm). Bạn có thể gắn máy in barcode decal (khổ 50x30mm) hoặc máy in bill nhiệt K80 để in dán quầy:
-          </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
             {/* TEM 1 */}
             <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '12px', border: '2.5px solid #059669', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.15)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#059669' }}>
-                  1. MÃ LỆNH CHỐT ĐƠN (THANHTOAN)
+                  1. THANHTOAN
                 </span>
-                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>CỐ ĐỊNH</span>
-              </div>
-              <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
-                Quét để chốt đơn và sinh mã VietQR động đúng số tiền. Tiền về tài khoản app tự động bắt Webhook nhận diện và in bill.
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '2.2rem', letterSpacing: '4px', fontWeight: 900, textAlign: 'center', color: '#000' }}>
                 |||| | ||||| ||| |||
@@ -350,30 +342,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
               <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem', textAlign: 'center', marginTop: '2px', color: '#059669' }}>
                 *THANHTOAN*
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center', marginTop: '6px' }}>
-                Dán tại quầy thu ngân hoặc cạnh màn hình phụ CFD
-              </div>
             </div>
 
             {/* TEM 2 */}
             <div style={{ background: '#fff', color: '#000', padding: '16px', borderRadius: '12px', border: '2.5px solid #dc2626', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#dc2626' }}>
-                  2. MÃ LỆNH HOÀN TÁC (XOA)
+                  2. HOÀN TÁC
                 </span>
-                <span style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>CỐ ĐỊNH</span>
-              </div>
-              <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
-                Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ khách mua 1 hộp giấy nhưng lỡ tay bóp cò 2 lần).
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '2.2rem', letterSpacing: '4px', fontWeight: 900, textAlign: 'center', color: '#000' }}>
                 ||| |||| | ||| ||||
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.15rem', textAlign: 'center', marginTop: '2px', color: '#dc2626' }}>
                 *XOA*
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center', marginTop: '6px' }}>
-                Dán trên thân hoặc cạnh chân đế súng quét barcode
               </div>
             </div>
           </div>

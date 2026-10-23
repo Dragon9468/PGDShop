@@ -205,9 +205,6 @@ export const ShelfManagementView: React.FC = () => {
               1. QUẢN LÝ KỆ HÀNG (HÀNG BÁN LẺ TRƯNG BÀY TRÊN KỆ)
             </h1>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Quản lý sơ đồ vị trí kệ (Dãy, Tầng), sức chứa và hàng bán lẻ trưng bày trên kệ. (Hàng chế biến F&B được quản lý riêng tại Mục 2).
-          </p>
         </div>
 
         {/* Cụm nút Thao tác & Nút Khóa / Mở khóa an toàn */}
@@ -248,35 +245,6 @@ export const ShelfManagementView: React.FC = () => {
               </button>
             )
           )}
-        </div>
-      </div>
-
-      {/* THANH THÔNG TIN QUY CHUẨN MÃ VỊ TRÍ THEO QUY ĐỊNH */}
-      <div
-        style={{
-          background: 'rgba(56, 189, 248, 0.08)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
-          borderRadius: '10px',
-          padding: '12px 16px',
-          marginBottom: '18px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px',
-          fontSize: '0.86rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800 }}>
-          <MapPin size={18} />
-          <span>QUY CHUẨN MÃ VỊ TRÍ TRƯNG BÀY BÁN LẺ (ĐÃ CẬP NHẬT)</span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-          <span><b>🗄️ KE:</b> Kệ hàng (VD: <code style={{ color: '#38bdf8' }}>KE01-T1A</code> = Kệ 01 tầng 1 ô A; full tầng: <code style={{ color: '#38bdf8' }}>KE01-T1</code>)</span>
-          <span>• <b>🧊 TL:</b> Tủ lạnh đông (VD: <code style={{ color: '#38bdf8' }}>TL01-T1</code>)</span>
-          <span>• <b>🥛 TM:</b> Tủ mát (VD: <code style={{ color: '#38bdf8' }}>TM01-T1A</code>)</span>
-          <span>• <b>🪝 MO:</b> Pegboard móc treo (VD: <code style={{ color: '#38bdf8' }}>MO01-T1A</code>)</span>
-          <span>• <b>🧺 RO:</b> Rổ trái cây rau củ (VD: <code style={{ color: '#38bdf8' }}>RO01-A</code>)</span>
-          <span>• <b>🥤 NC:</b> Máy bán nước tự động (VD: <code style={{ color: '#38bdf8' }}>NC01-T1A</code>)</span>
-          <span style={{ color: '#f59e0b', fontWeight: 700 }}>• ☕ Chế biến (F&B): Bán tại quầy, không có mã vị trí</span>
         </div>
       </div>
 
