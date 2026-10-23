@@ -317,8 +317,8 @@ class PrintService {
         <div class="label-grid">
           <!-- TEM 1: THANHTOAN -->
           <div class="sticker-card">
-            <div class="sticker-header" style="color: #059669;">1. MÃ LỆNH THANH TOÁN (THANHTOAN)</div>
-            <div class="sticker-sub">Chốt đơn sinh mã VietQR động • Nhận tiền tự động qua Webhook</div>
+            <div class="sticker-header" style="color: #059669;">1. Thanh toán</div>
+            <div class="sticker-sub">Chốt đơn sinh mã VietQR động</div>
             
             <div class="barcode-bars">
               <div class="bar b-thick"></div><div class="sp-1"></div>
@@ -338,13 +338,13 @@ class PrintService {
             </div>
 
             <div class="barcode-text">*THANHTOAN*</div>
-            <div class="footer-note">${storeName} • Dán tại quầy thu ngân hoặc cạnh màn hình phụ</div>
+            <div class="footer-note">${storeName}</div>
           </div>
 
           <!-- TEM 2: XOA -->
           <div class="sticker-card">
-            <div class="sticker-header" style="color: #dc2626;">2. MÃ LỆNH HOÀN TÁC (XOA)</div>
-            <div class="sticker-sub">Trừ 1 số lượng món vừa bóp cò nhầm (ví dụ mua 1 nhưng scan 2 lần)</div>
+            <div class="sticker-header" style="color: #dc2626;">2. Hoàn tác</div>
+            <div class="sticker-sub">Trừ 1 số lượng món vừa bóp cò nhầm</div>
             
             <div class="barcode-bars">
               <div class="bar b-wide"></div><div class="sp-2"></div>
