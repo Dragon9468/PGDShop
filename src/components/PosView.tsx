@@ -132,18 +132,39 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
       return;
     }
 
-    // 3. Quét mã sản phẩm thông thường
+    // Tách hệ số nhân số lượng nếu người dùng gõ hoặc quét cú pháp: 5*MãVạch hoặc 10xMãVạch
+    let qtyMultiplier = 1;
+    let codeToMatch = cleanCode;
+    const multMatch = cleanCode.match(/^(\d+)[*xX](.+)$/);
+    if (multMatch) {
+      qtyMultiplier = Math.max(1, parseInt(multMatch[1], 10) || 1);
+      codeToMatch = multMatch[2].trim();
+    }
+
+    // 3. ƯU TIÊN KIỂM TRA MÃ THÙNG / KIỆN (caseBarcode - Quét 1 Thùng)
+    const matchedCase = products.find(
+      (p) => p.caseBarcode && p.caseBarcode.toUpperCase() === codeToMatch
+    );
+    if (matchedCase) {
+      soundService.playBarcodeBeep();
+      addToCart(matchedCase, true, qtyMultiplier);
+      setSearchQuery('');
+      return;
+    }
+
+    // 4. Kiểm tra mã vạch món lẻ thông thường (barcode EAN-13)
     const matchedProduct = products.find(
-      (p) => p.barcode.toUpperCase() === cleanCode
+      (p) => p.barcode && p.barcode.toUpperCase() === codeToMatch
     );
 
     if (matchedProduct) {
       soundService.playBarcodeBeep();
-      addToCart(matchedProduct);
+      addToCart(matchedProduct, false, qtyMultiplier);
       setSearchQuery('');
-    } else {
-      alert(`⚠️ Không tìm thấy sản phẩm có mã barcode: ${cleanCode}`);
+      return;
     }
+
+    alert(`⚠️ Không tìm thấy sản phẩm có mã barcode lẻ hoặc mã thùng: ${cleanCode}`);
   };
 
   // Hoàn tác 1 số lượng món vừa quét
@@ -155,7 +176,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
 
     let targetIndex = -1;
     if (lastScannedProductId) {
-      targetIndex = cart.findIndex((i) => i.product.id === lastScannedProductId);
+      targetIndex = cart.findIndex((i) => i.id === lastScannedProductId || i.product.id === lastScannedProductId);
     }
     if (targetIndex === -1) {
       targetIndex = cart.length - 1;
@@ -167,19 +188,21 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     soundService.playBarcodeBeep();
     setCart((prevCart) => {
       const updated = [...prevCart];
+      const itemPrice = targetItem.unitPrice || targetItem.product.retailPrice;
+      const unitLabel = targetItem.unitName || targetItem.product.unit;
       if (targetItem.quantity > 1) {
         const newQty = targetItem.quantity - 1;
         updated[targetIndex] = {
           ...targetItem,
           quantity: newQty,
-          subtotal: newQty * targetItem.product.retailPrice,
+          subtotal: newQty * itemPrice,
         };
         soundService.speakVietnamese(
-          `Đã hoàn tác 1 ${targetItem.product.name}. Còn lại ${newQty} món.`
+          `Đã hoàn tác 1 ${unitLabel} ${targetItem.product.name}. Còn lại ${newQty}.`
         );
       } else {
         updated.splice(targetIndex, 1);
-        soundService.speakVietnamese(`Đã xóa món ${targetItem.product.name} khỏi giỏ.`);
+        soundService.speakVietnamese(`Đã xóa ${targetItem.product.name} khỏi giỏ.`);
       }
       return updated;
     });
@@ -192,50 +215,71 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     }
   };
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, isCase: boolean = false, qtyToAdd: number = 1) => {
     soundService.playBarcodeBeep();
-    setLastScannedProductId(product.id);
+    const lineId = `${product.id}-${isCase ? 'case' : 'unit'}`;
+    setLastScannedProductId(lineId);
+
     if (checkoutStatus === 'AWAITING_PAYMENT') {
       paymentWebhookService.stopMonitoring();
       setCheckoutStatus('SCANNING');
       setActiveOrderCode('');
     }
 
+    const unitPrice = isCase
+      ? (product.casePrice || product.retailPrice * (product.unitsPerCase || 24))
+      : product.retailPrice;
+    const unitName = isCase ? (product.caseUnit || 'Thùng') : product.unit;
+
     setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex((item) => item.product.id === product.id);
+      const existingIndex = prevCart.findIndex(
+        (item) => item.id === lineId || (item.product.id === product.id && Boolean(item.isCase) === isCase)
+      );
       if (existingIndex >= 0) {
         const updated = [...prevCart];
-        const newQty = updated[existingIndex].quantity + 1;
+        const newQty = updated[existingIndex].quantity + qtyToAdd;
         updated[existingIndex] = {
           ...updated[existingIndex],
           quantity: newQty,
-          subtotal: newQty * product.retailPrice,
+          subtotal: newQty * unitPrice,
         };
         return updated;
       } else {
         return [
           ...prevCart,
           {
+            id: lineId,
             product,
-            quantity: 1,
-            subtotal: product.retailPrice,
+            quantity: qtyToAdd,
+            subtotal: qtyToAdd * unitPrice,
+            isCase,
+            unitName,
+            unitPrice,
           },
         ];
       }
     });
+
+    if (isCase) {
+      soundService.speakVietnamese(
+        `Đã thêm ${qtyToAdd > 1 ? qtyToAdd : '1'} ${unitName} ${product.name}.`
+      );
+    }
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (cartItemId: string, delta: number) => {
     setCart((prevCart) => {
       return prevCart
         .map((item) => {
-          if (item.product.id === productId) {
+          const match = item.id === cartItemId || item.product.id === cartItemId;
+          if (match) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
+            const price = item.unitPrice || item.product.retailPrice;
             return {
               ...item,
               quantity: newQty,
-              subtotal: newQty * item.product.retailPrice,
+              subtotal: newQty * price,
             };
           }
           return item;
@@ -244,8 +288,8 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.product.id !== productId));
+  const removeFromCart = (cartItemId: string) => {
+    setCart((prevCart) => prevCart.filter((item) => item.id !== cartItemId && item.product.id !== cartItemId));
   };
 
   const clearCart = () => {
@@ -257,6 +301,30 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     setLastScannedProductId(null);
     dualScreenSync.clearCart();
     barcodeInputRef.current?.focus();
+  };
+
+  // Trừ tồn kho khi đơn hàng thanh toán thành công (hỗ trợ quy đổi Thùng ra đơn vị lẻ)
+  const deductInventory = (orderItems: CartItem[]) => {
+    setProducts((prevProducts) => {
+      const updated = prevProducts.map((p) => {
+        const matches = orderItems.filter((item) => item.product.id === p.id);
+        if (matches.length === 0) return p;
+        let unitsToDeduct = 0;
+        for (const item of matches) {
+          if (item.isCase) {
+            unitsToDeduct += item.quantity * (p.unitsPerCase || 24);
+          } else {
+            unitsToDeduct += item.quantity;
+          }
+        }
+        return {
+          ...p,
+          stockQuantity: Math.max(0, p.stockQuantity - unitsToDeduct),
+        };
+      });
+      storageService.saveProducts(updated);
+      return updated;
+    });
   };
 
   // -------------------------------------------------------------
@@ -282,6 +350,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     };
 
     storageService.savePosOrder(order);
+    deductInventory(cart);
     soundService.announceCashSuccess(finalAmount);
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     dualScreenSync.notifyPaymentSuccess('CASH', finalAmount, order.orderCode);
@@ -318,6 +387,7 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
     };
 
     storageService.savePosOrder(order);
+    deductInventory(cart);
     soundService.announceTransferSuccess(finalAmount);
     confetti({ particleCount: 110, spread: 80, origin: { y: 0.5 } });
     dualScreenSync.notifyPaymentSuccess('VIETQR', finalAmount, order.orderCode);
@@ -563,63 +633,74 @@ export const PosView: React.FC<PosViewProps> = ({ settings }) => {
               <p style={{ fontSize: '0.88rem' }}>Giỏ hàng đang trống</p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div key={item.product.id} className="cart-item">
-                {item.product.imageUrl && (
-                  <img
-                    src={item.product.imageUrl}
-                    alt={item.product.name}
+            cart.map((item) => {
+              const itemKey = item.id || `${item.product.id}-${item.isCase ? 'case' : 'unit'}`;
+              const unitPrice = item.unitPrice || item.product.retailPrice;
+              const unitLabel = item.unitName || item.product.unit;
+              return (
+                <div key={itemKey} className="cart-item">
+                  {item.product.imageUrl && (
+                    <img
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '6px',
+                        objectFit: 'cover',
+                        marginRight: '8px',
+                        border: '1px solid var(--border-color)',
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="cart-item-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      {item.isCase && (
+                        <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #ec4899, #d946ef)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                          📦 THÙNG
+                        </span>
+                      )}
+                      <span title={item.product.name}>{item.product.name}</span>
+                    </div>
+                    <div className="cart-item-price" style={{ color: item.isCase ? '#ec4899' : 'var(--text-secondary)' }}>
+                      {new Intl.NumberFormat('vi-VN').format(unitPrice)}đ / {unitLabel}
+                    </div>
+                  </div>
+
+                  <div className="cart-item-qty">
+                    <button className="qty-btn" onClick={() => updateQuantity(itemKey, -1)}>
+                      <Minus size={12} />
+                    </button>
+                    <span className="qty-val">{item.quantity}</span>
+                    <button className="qty-btn" onClick={() => updateQuantity(itemKey, 1)}>
+                      <Plus size={12} />
+                    </button>
+                  </div>
+
+                  <div className="cart-item-total">
+                    {new Intl.NumberFormat('vi-VN').format(item.subtotal)}đ
+                  </div>
+
+                  <button
+                    onClick={() => removeFromCart(itemKey)}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '6px',
-                      objectFit: 'cover',
-                      marginRight: '8px',
-                      border: '1px solid var(--border-color)',
-                      flexShrink: 0,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      marginLeft: '6px',
+                      cursor: 'pointer',
                     }}
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="cart-item-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {item.product.name}
-                  </div>
-                  <div className="cart-item-price">
-                    {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
-                  </div>
-                </div>
-
-                <div className="cart-item-qty">
-                  <button className="qty-btn" onClick={() => updateQuantity(item.product.id, -1)}>
-                    <Minus size={12} />
-                  </button>
-                  <span className="qty-val">{item.quantity}</span>
-                  <button className="qty-btn" onClick={() => updateQuantity(item.product.id, 1)}>
-                    <Plus size={12} />
+                    title="Xóa món này khỏi giỏ"
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </div>
-
-                <div className="cart-item-total">
-                  {new Intl.NumberFormat('vi-VN').format(item.subtotal)}đ
-                </div>
-
-                <button
-                  onClick={() => removeFromCart(item.product.id)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    marginLeft: '6px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

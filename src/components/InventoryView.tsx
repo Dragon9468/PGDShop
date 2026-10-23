@@ -39,7 +39,9 @@ import {
   Image as ImageIcon,
   Coffee,
   HelpCircle,
+  Barcode,
 } from 'lucide-react';
+import { soundService } from '../services/soundService';
 
 const BULK_PRESET_IMAGES = [
   { label: 'Bao Cà phê Robusta 30kg', url: 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=400&auto=format&fit=crop&q=80' },
@@ -72,6 +74,8 @@ export const InventoryView: React.FC = () => {
 
   // Modal Tạo Phiếu Nhập Kho Mới
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importBarcodeScan, setImportBarcodeScan] = useState('');
+  const [scanFeedback, setScanFeedback] = useState('');
   const [importForm, setImportForm] = useState({
     supplier: 'Tổng Kho Cà Phê Ban Mê',
     name: '',
@@ -84,6 +88,7 @@ export const InventoryView: React.FC = () => {
     unitsPerBulk: 60,
     notes: 'Nhập hàng sỉ kho định kỳ',
     imageUrl: '',
+    barcode: '',
   });
 
   // Modal Xuất Kho (Lên Kệ Bán Lẻ HOẶC Cho Quầy Chế Biến)
@@ -203,6 +208,70 @@ export const InventoryView: React.FC = () => {
     }
   };
 
+  // Xử lý quét barcode vỏ thùng carton để tự động điền phiếu nhập kho
+  const handleScanInboundCarton = (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return;
+
+    // 1. Tìm trong kho theo barcode vỏ thùng hoặc SKU
+    const foundWh = warehouseItems.find(
+      (w) => (w.barcode && w.barcode.toUpperCase() === code) || w.sku.toUpperCase() === code
+    );
+    if (foundWh) {
+      soundService.playBarcodeBeep();
+      setImportForm((prev) => ({
+        ...prev,
+        name: foundWh.name,
+        supplier: foundWh.supplier || prev.supplier,
+        category: foundWh.category,
+        bulkUnit: foundWh.bulkUnit,
+        packageSpec: foundWh.packageSpec,
+        unitPrice: foundWh.importPrice,
+        locationCode: foundWh.locationCode,
+        unitsPerBulk: foundWh.unitsPerBulk || 1,
+        imageUrl: foundWh.imageUrl || '',
+        barcode: foundWh.barcode || code,
+      }));
+      setScanFeedback(`✅ Đã tìm thấy: ${foundWh.name} (${foundWh.packageSpec})`);
+      soundService.speakVietnamese(`Đã nhận diện ${foundWh.name}`);
+      return;
+    }
+
+    // 2. Tìm theo sản phẩm bán lẻ (mã thùng caseBarcode hoặc barcode lẻ)
+    const foundProd = products.find(
+      (p) =>
+        (p.caseBarcode && p.caseBarcode.toUpperCase() === code) ||
+        (p.barcode && p.barcode.toUpperCase() === code)
+    );
+    if (foundProd) {
+      soundService.playBarcodeBeep();
+      const isCaseCode = foundProd.caseBarcode && foundProd.caseBarcode.toUpperCase() === code;
+      const perBulk = isCaseCode ? (foundProd.unitsPerCase || 24) : 1;
+      const spec = isCaseCode
+        ? `${foundProd.caseUnit || 'Thùng'} ${perBulk} ${foundProd.unit}`
+        : `Thùng ${foundProd.name}`;
+      const estCost = foundProd.costPrice * perBulk;
+
+      setImportForm((prev) => ({
+        ...prev,
+        name: `${foundProd.name} (Thùng Sỉ)`,
+        category: (foundProd.category === 'CheBien_FB' ? 'NguyenLieu_FB' : (foundProd.category as any)) || 'HangKho_DongGoi',
+        bulkUnit: 'Thùng',
+        packageSpec: spec,
+        unitPrice: estCost,
+        unitsPerBulk: perBulk,
+        imageUrl: foundProd.imageUrl || '',
+        barcode: code,
+      }));
+      setScanFeedback(`✅ Đã nhận diện từ sản phẩm: ${foundProd.name} (${spec})`);
+      soundService.speakVietnamese(`Đã nhận diện thùng ${foundProd.name}`);
+      return;
+    }
+
+    soundService.playBarcodeBeep();
+    setScanFeedback(`⚠️ Mã "${code}" chưa có trong danh mục. Bạn có thể nhập mới thông tin phiếu.`);
+  };
+
   // Tạo phiếu nhập kho mới từ nhà cung cấp
   const handleCreateImportSlip = (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,11 +306,15 @@ export const InventoryView: React.FC = () => {
     if (existing) {
       existing.stockQuantity += importForm.quantity;
       existing.importPrice = importForm.unitPrice;
+      if (importForm.barcode && !existing.barcode) {
+        existing.barcode = importForm.barcode;
+      }
       storageService.updateWarehouseItem(existing);
     } else {
       const newItem: WarehouseItem = {
         id: 'wh-item-' + Date.now(),
         sku: 'WH-' + Math.floor(1000 + Math.random() * 9000),
+        barcode: importForm.barcode || importBarcodeScan,
         name: importForm.name,
         category: importForm.category,
         bulkUnit: importForm.bulkUnit,
@@ -258,6 +331,8 @@ export const InventoryView: React.FC = () => {
     }
 
     setIsImportModalOpen(false);
+    setImportBarcodeScan('');
+    setScanFeedback('');
     reloadData();
     alert(`Đã tạo phiếu nhập kho ${slipCode} thành công! Chi phí đã tự động liên kết sang OpEx.`);
   };
@@ -267,6 +342,7 @@ export const InventoryView: React.FC = () => {
     setEditingItem(null);
     setItemForm({
       sku: 'WH-' + Math.floor(1000 + Math.random() * 9000),
+      barcode: '',
       name: '',
       category: 'HangKho_DongGoi',
       bulkUnit: 'Thùng',
@@ -304,6 +380,7 @@ export const InventoryView: React.FC = () => {
       const newItem: WarehouseItem = {
         id: 'wh-item-' + Date.now(),
         sku: itemForm.sku!,
+        barcode: itemForm.barcode || '',
         name: itemForm.name!,
         category: itemForm.category || 'HangKho_DongGoi',
         bulkUnit: itemForm.bulkUnit || 'Thùng',
@@ -720,9 +797,28 @@ export const InventoryView: React.FC = () => {
                       <span style={{ fontWeight: 600 }}>{explainWarehouseCode(item.locationCode)}</span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#818cf8', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#818cf8', marginBottom: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{item.sku}</span>
                       <span>• {item.packageSpec}</span>
+                      {item.barcode && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            background: 'rgba(236, 72, 153, 0.15)',
+                            color: '#f472b6',
+                            border: '1px solid rgba(236, 72, 153, 0.3)',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                          title={`Mã vạch vỏ thùng: ${item.barcode}`}
+                        >
+                          <Barcode size={11} />
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>{item.barcode}</span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Giá nhập sỉ (thùng / kg / lít) */}
@@ -1250,6 +1346,57 @@ export const InventoryView: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateImportSlip} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Ô Quét Barcode Vỏ Thùng để tự động điền nhanh */}
+              <div
+                style={{
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1.5px dashed #818cf8',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.82rem', color: '#a5b4fc', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Barcode size={16} color="#818cf8" />
+                    <span>Bóp Cò Súng Quét Mã Thùng Carton / Gõ Mã Vỏ Thùng:</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Nhập nhanh cả thùng / bao
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Quét mã vạch vỏ thùng (VD: 18935001006...)"
+                    value={importBarcodeScan}
+                    onChange={(e) => setImportBarcodeScan(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleScanInboundCarton(importBarcodeScan);
+                      }
+                    }}
+                    style={{ flex: 1, padding: '8px 10px', fontFamily: 'var(--font-mono)' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleScanInboundCarton(importBarcodeScan)}
+                    style={{ padding: '6px 14px', fontSize: '0.8rem', background: '#4f46e5', color: '#fff', border: 'none', cursor: 'pointer' }}
+                  >
+                    Nhận Diện
+                  </button>
+                </div>
+                {scanFeedback && (
+                  <div style={{ fontSize: '0.74rem', color: scanFeedback.startsWith('✅') ? '#10b981' : '#f59e0b' }}>
+                    {scanFeedback}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Nhà Cung Cấp:</label>
                 <input
@@ -1387,7 +1534,7 @@ export const InventoryView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveItem} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr', gap: '10px' }}>
                 <div>
                   <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Tên Mặt Hàng Kho:</label>
                   <input
@@ -1405,6 +1552,16 @@ export const InventoryView: React.FC = () => {
                     required
                     value={itemForm.sku || ''}
                     onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })}
+                    style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Mã Barcode Vỏ Thùng:</label>
+                  <input
+                    type="text"
+                    placeholder="Quét mã vỏ thùng..."
+                    value={itemForm.barcode || ''}
+                    onChange={(e) => setItemForm({ ...itemForm, barcode: e.target.value })}
                     style={{ width: '100%', padding: '8px', fontFamily: 'var(--font-mono)' }}
                   />
                 </div>

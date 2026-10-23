@@ -216,38 +216,77 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
       return;
     }
 
+    // Tách hệ số nhân số lượng nếu người dùng gõ hoặc quét cú pháp: 5*MãVạch hoặc 10xMãVạch
+    let qtyMultiplier = 1;
+    let codeToMatch = scanned;
+    const multMatch = scanned.match(/^(\d+)[*xX](.+)$/);
+    if (multMatch) {
+      qtyMultiplier = Math.max(1, parseInt(multMatch[1], 10) || 1);
+      codeToMatch = multMatch[2].trim();
+    }
+
     // Nếu ở chế độ Kiosk tự phục vụ:
     if (isKioskMode) {
       const products = storageService.getProducts();
-      const matched = products.find((p) => p.barcode.toUpperCase() === scanned);
+      // Ưu tiên kiểm tra mã thùng carton trước
+      const matchedCase = products.find((p) => p.caseBarcode && p.caseBarcode.toUpperCase() === codeToMatch);
+      const matchedUnit = products.find((p) => p.barcode && p.barcode.toUpperCase() === codeToMatch);
+      const matched = matchedCase || matchedUnit;
+      const isCase = Boolean(matchedCase);
+
       if (matched) {
         soundService.playBarcodeBeep();
-        setLastScannedId(matched.id);
+        const lineId = `${matched.id}-${isCase ? 'case' : 'unit'}`;
+        setLastScannedId(lineId);
         if (checkoutStatus === 'AWAITING_PAYMENT') {
           paymentWebhookService.stopMonitoring();
           setCheckoutStatus('SCANNING');
           setOrderCode('');
         }
 
+        const unitPrice = isCase
+          ? (matched.casePrice || matched.retailPrice * (matched.unitsPerCase || 24))
+          : matched.retailPrice;
+        const unitName = isCase ? (matched.caseUnit || 'Thùng') : matched.unit;
+
         setCart((prev) => {
-          const existIdx = prev.findIndex((i) => i.product.id === matched.id);
+          const existIdx = prev.findIndex(
+            (i) => i.id === lineId || (i.product.id === matched.id && Boolean(i.isCase) === isCase)
+          );
           let updated: CartItem[];
           if (existIdx >= 0) {
             updated = [...prev];
-            const newQty = updated[existIdx].quantity + 1;
+            const newQty = updated[existIdx].quantity + qtyMultiplier;
             updated[existIdx] = {
               ...updated[existIdx],
               quantity: newQty,
-              subtotal: newQty * matched.retailPrice,
+              subtotal: newQty * unitPrice,
             };
           } else {
-            updated = [...prev, { product: matched, quantity: 1, subtotal: matched.retailPrice }];
+            updated = [
+              ...prev,
+              {
+                id: lineId,
+                product: matched,
+                quantity: qtyMultiplier,
+                subtotal: qtyMultiplier * unitPrice,
+                isCase,
+                unitName,
+                unitPrice,
+              },
+            ];
           }
           const total = updated.reduce((s, i) => s + i.subtotal, 0);
           setTotalAmount(total);
           setFinalAmount(total - discountAmount);
           return updated;
         });
+
+        if (isCase) {
+          soundService.speakVietnamese(
+            `Đã thêm ${qtyMultiplier > 1 ? qtyMultiplier : '1'} ${unitName} ${matched.name}`
+          );
+        }
       } else {
         soundService.speakVietnamese('Không tìm thấy sản phẩm có mã này');
       }
@@ -378,6 +417,26 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
       };
       storageService.savePosOrder(newOrder);
 
+      // Trừ tồn kho theo số lượng hoặc thùng
+      const currentProducts = storageService.getProducts();
+      const updatedProds = currentProducts.map((p) => {
+        const matches = cart.filter((item) => item.product.id === p.id);
+        if (matches.length === 0) return p;
+        let unitsToDeduct = 0;
+        for (const item of matches) {
+          if (item.isCase) {
+            unitsToDeduct += item.quantity * (p.unitsPerCase || 24);
+          } else {
+            unitsToDeduct += item.quantity;
+          }
+        }
+        return {
+          ...p,
+          stockQuantity: Math.max(0, p.stockQuantity - unitsToDeduct),
+        };
+      });
+      storageService.saveProducts(updatedProds);
+
       // In bill qua máy in được gán cho trạm này
       printService.printThermalReceipt(newOrder, settings);
     }
@@ -437,7 +496,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
     // Tìm món cần hoàn tác: ưu tiên lastScannedId, hoặc lấy món cuối cùng trong giỏ
     let targetIndex = -1;
     if (lastScannedId) {
-      targetIndex = cart.findIndex((i) => i.product.id === lastScannedId);
+      targetIndex = cart.findIndex((i) => i.id === lastScannedId || i.product.id === lastScannedId);
     }
     if (targetIndex === -1) {
       targetIndex = cart.length - 1;
@@ -448,20 +507,22 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
 
     soundService.playBarcodeBeep();
     let updatedCart = [...cart];
+    const price = targetItem.unitPrice || targetItem.product.retailPrice;
+    const unitLabel = targetItem.unitName || targetItem.product.unit;
 
     if (targetItem.quantity > 1) {
       const newQty = targetItem.quantity - 1;
       updatedCart[targetIndex] = {
         ...targetItem,
         quantity: newQty,
-        subtotal: newQty * targetItem.product.retailPrice,
+        subtotal: newQty * price,
       };
       soundService.speakVietnamese(
-        `Đã hoàn tác 1 ${targetItem.product.name}. Còn lại ${newQty} món.`
+        `Đã hoàn tác 1 ${unitLabel} ${targetItem.product.name}. Còn lại ${newQty}.`
       );
     } else {
       updatedCart.splice(targetIndex, 1);
-      soundService.speakVietnamese(`Đã xóa món ${targetItem.product.name} khỏi giỏ.`);
+      soundService.speakVietnamese(`Đã xóa ${targetItem.product.name} khỏi giỏ.`);
     }
 
     const newTotal = updatedCart.reduce((sum, item) => sum + item.subtotal, 0);
@@ -635,9 +696,13 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                   </div>
                 </div>
               ) : (
-                cart.map((item, index) => (
+                cart.map((item, index) => {
+                  const itemKey = item.id || `${item.product.id}-${item.isCase ? 'case' : 'unit'}-${index}`;
+                  const unitPrice = item.unitPrice || item.product.retailPrice;
+                  const unitLabel = item.unitName || item.product.unit;
+                  return (
                   <div
-                    key={item.product.id || index}
+                    key={itemKey}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -645,7 +710,7 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                       background: 'var(--bg-card)',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
+                      border: item.isCase ? '1px solid rgba(236, 72, 153, 0.4)' : '1px solid var(--border-color)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -667,11 +732,16 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                         />
                       )}
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.product.name}
+                        <div style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {item.isCase && (
+                            <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #ec4899, #d946ef)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                              📦 THÙNG
+                            </span>
+                          )}
+                          <span>{item.product.name}</span>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                          {new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ / {item.product.unit}
+                        <div style={{ fontSize: '0.78rem', color: item.isCase ? '#ec4899' : 'var(--text-muted)' }}>
+                          {new Intl.NumberFormat('vi-VN').format(unitPrice)}đ / {unitLabel}
                         </div>
                       </div>
                     </div>
@@ -705,7 +775,8 @@ export const CustomerDisplayView: React.FC<CustomerDisplayViewProps> = ({ settin
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
 

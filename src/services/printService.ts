@@ -11,19 +11,22 @@ class PrintService {
   public printThermalReceipt(order: PosOrder, settings: AppSettings) {
     const formattedDate = new Date(order.createdAt).toLocaleString('vi-VN');
     const itemsHtml = order.items
-      .map(
-        (item) => `
+      .map((item) => {
+        const displayName = item.isCase ? `[THÙNG] ${item.product.name}` : item.product.name;
+        const unitLabel = item.unitName || (item.isCase ? (item.product.caseUnit || 'Thùng') : item.product.unit);
+        const unitPrice = item.unitPrice || (item.isCase ? (item.product.casePrice || item.product.retailPrice * (item.product.unitsPerCase || 24)) : item.product.retailPrice);
+        return `
         <tr>
           <td style="text-align: left; padding: 3px 0;">
-            <div style="font-weight: 600;">${item.product.name}</div>
-            <div style="font-size: 11px; color: #555;">${item.quantity} ${item.product.unit} x ${new Intl.NumberFormat('vi-VN').format(item.product.retailPrice)}đ</div>
+            <div style="font-weight: 600;">${displayName}</div>
+            <div style="font-size: 11px; color: #555;">${item.quantity} ${unitLabel} x ${new Intl.NumberFormat('vi-VN').format(unitPrice)}đ</div>
           </td>
           <td style="text-align: right; vertical-align: top; font-weight: 600; padding: 3px 0;">
             ${new Intl.NumberFormat('vi-VN').format(item.subtotal)}đ
           </td>
         </tr>
-      `
-      )
+      `;
+      })
       .join('');
 
     const htmlContent = `

@@ -60,6 +60,10 @@ const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-03',
     barcode: '8935001003',
+    caseBarcode: '18935001003',
+    caseUnit: 'Thùng (48 hộp)',
+    unitsPerCase: 48,
+    casePrice: 1050000,
     name: 'Sữa đặc Phương Nam hộp 380g',
     category: 'TapHoa',
     unit: 'Hộp',
@@ -90,6 +94,10 @@ const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-05',
     barcode: '8935001005',
+    caseBarcode: '18935001005',
+    caseUnit: 'Thùng (50 cuộn)',
+    unitsPerCase: 50,
+    casePrice: 450000,
     name: 'Giấy in nhiệt K80 phi 45 (Bọc bạc)',
     category: 'VanPhongPham',
     unit: 'Cuộn',
@@ -105,6 +113,10 @@ const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-06',
     barcode: '8935001006',
+    caseBarcode: '18935001006',
+    caseUnit: 'Thùng (24 lon)',
+    unitsPerCase: 24,
+    casePrice: 260000,
     name: 'Nước ngọt Coca Cola lon 320ml (Ướp lạnh)',
     category: 'TapHoa',
     unit: 'Lon',
@@ -410,6 +422,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-01',
     sku: 'WH-CF-01',
+    barcode: '18935001001',
     name: 'Cà phê Hạt Robusta Mộc S18 (Bao Sỉ)',
     category: 'NguyenLieu_FB',
     bulkUnit: 'Bao',
@@ -426,6 +439,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-02',
     sku: 'WH-CF-02',
+    barcode: '18935001002',
     name: 'Cà phê Arabica Cầu Đất (Bao Sỉ)',
     category: 'NguyenLieu_FB',
     bulkUnit: 'Bao',
@@ -442,6 +456,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-03',
     sku: 'WH-SUA-01',
+    barcode: '18935001003',
     name: 'Sữa Đặc Phương Nam (Thùng Sỉ 48 Hộp)',
     category: 'HangKho_DongGoi',
     bulkUnit: 'Thùng',
@@ -458,6 +473,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-04',
     sku: 'WH-LY-01',
+    barcode: '18935001004',
     name: 'Ly Giấy Kraft 500ml Kèm Nắp (Thùng 1000 Cái)',
     category: 'BaoBi',
     bulkUnit: 'Thùng',
@@ -474,6 +490,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-05',
     sku: 'WH-GIAY-01',
+    barcode: '18935001005',
     name: 'Giấy In Nhiệt K80 Phi 45 Bọc Bạc (Thùng 50 Cuộn)',
     category: 'VanPhongPham',
     bulkUnit: 'Thùng',
@@ -490,6 +507,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-06',
     sku: 'WH-SIRO-01',
+    barcode: '18935001006-CAN',
     name: 'Siro Đào Golden Farm (Can 5 Lít Pha Chế)',
     category: 'NguyenLieu_FB',
     bulkUnit: 'Can',
@@ -505,6 +523,7 @@ const INITIAL_WAREHOUSE_ITEMS: WarehouseItem[] = [
   {
     id: 'wh-item-07',
     sku: 'WH-NUOC-01',
+    barcode: '18935001006',
     name: 'Nước Ngọt Coca Cola (Thùng 24 Lon 320ml)',
     category: 'HangKho_DongGoi',
     bulkUnit: 'Thùng',
@@ -1018,6 +1037,17 @@ class StorageService {
         }
       }
 
+      if (!newItem.caseBarcode) {
+        const fallback = INITIAL_PRODUCTS.find((p) => p.id === newItem.id);
+        if (fallback?.caseBarcode) {
+          newItem.caseBarcode = fallback.caseBarcode;
+          newItem.caseUnit = fallback.caseUnit;
+          newItem.unitsPerCase = fallback.unitsPerCase;
+          newItem.casePrice = fallback.casePrice;
+          changed = true;
+        }
+      }
+
       if (changed) hasChanges = true;
       return newItem;
     });
@@ -1118,12 +1148,22 @@ class StorageService {
     const list = this.getItem<WarehouseItem[]>('warehouse_items', INITIAL_WAREHOUSE_ITEMS);
     let changed = false;
     const migrated = list.map((item) => {
-      const updatedLoc = this.migrateLocationCode(item.locationCode);
-      if (updatedLoc && updatedLoc !== item.locationCode) {
-        changed = true;
-        return { ...item, locationCode: updatedLoc };
+      let itemChanged = false;
+      let newItem = { ...item };
+      const updatedLoc = this.migrateLocationCode(newItem.locationCode);
+      if (updatedLoc && updatedLoc !== newItem.locationCode) {
+        itemChanged = true;
+        newItem.locationCode = updatedLoc;
       }
-      return item;
+      if (!newItem.barcode) {
+        const initItem = INITIAL_WAREHOUSE_ITEMS.find((w) => w.id === newItem.id || w.sku === newItem.sku);
+        if (initItem?.barcode) {
+          newItem.barcode = initItem.barcode;
+          itemChanged = true;
+        }
+      }
+      if (itemChanged) changed = true;
+      return newItem;
     });
     if (changed) {
       this.saveWarehouseItems(migrated);

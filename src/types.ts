@@ -6,7 +6,11 @@ export type ProductCategory = 'TatCa' | 'TapHoa' | 'CheBien_FB' | 'BaoBi' | 'Van
 
 export interface Product {
   id: string;
-  barcode: string;
+  barcode: string; // Mã đơn vị lẻ (lon, gói, chai)
+  caseBarcode?: string; // Mã vạch trên vỏ THÙNG / KIỆN / LỐC (ITF-14 / EAN-13 Thùng)
+  caseUnit?: string; // Tên đơn vị thùng: 'Thùng', 'Lốc', 'Bao', 'Két' (mặc định: 'Thùng')
+  unitsPerCase?: number; // Số lượng món lẻ trong 1 thùng (VD: 24 lon/thùng, 30 gói/thùng)
+  casePrice?: number; // Giá bán nguyên thùng ưu đãi (VD: 220.000đ/thùng)
   name: string;
   category: ProductCategory;
   unit: string;
@@ -58,6 +62,7 @@ export interface WarehouseLocation {
 export interface WarehouseItem {
   id: string;
   sku: string; // Mã lưu kho (WH-CF-01)
+  barcode?: string; // Mã vạch trên vỏ thùng để bóp cò súng quét nhập kho tức thì
   name: string;
   category: 'NguyenLieu_FB' | 'HangKho_DongGoi' | 'BaoBi' | 'VanPhongPham';
   bulkUnit: WarehouseBulkUnit; // Thùng / Kg / Lít / Can / Bao...
@@ -94,9 +99,13 @@ export interface PreparedRecipe {
 }
 
 export interface CartItem {
+  id?: string;
   product: Product;
   quantity: number;
   subtotal: number;
+  isCase?: boolean; // Quét mã thùng / kiện (mua nguyên thùng)
+  unitName?: string; // Tên đơn vị hiển thị ('Lon', 'Gói', 'Thùng', 'Lốc'...)
+  unitPrice?: number; // Đơn giá tương ứng với đơn vị tính
 }
 
 export interface PosOrder {

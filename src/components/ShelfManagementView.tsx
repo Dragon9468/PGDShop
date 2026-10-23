@@ -535,11 +535,19 @@ export const ShelfManagementView: React.FC = () => {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                     <Barcode size={13} />
                     <span style={{ fontFamily: 'var(--font-mono)' }}>{p.barcode}</span>
                     <span>• {p.unit}</span>
                   </div>
+
+                  {p.caseBarcode && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: '#ec4899', background: 'rgba(236, 72, 153, 0.1)', padding: '2px 6px', borderRadius: '4px', marginBottom: '6px' }} title={`Quét mã vỏ thùng: ${p.caseBarcode}`}>
+                      <span>📦 Thùng:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{p.caseBarcode}</span>
+                      <span>({p.unitsPerCase || 24} {p.unit})</span>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                     <div>
@@ -869,7 +877,7 @@ export const ShelfManagementView: React.FC = () => {
               {/* Tồn Kho */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Số Lượng Tồn Kho:</label>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Số Lượng Tồn Kho (Đơn vị lẻ):</label>
                   <input
                     type="number"
                     value={productForm.stockQuantity || 0}
@@ -885,6 +893,74 @@ export const ShelfManagementView: React.FC = () => {
                     onChange={(e) => setProductForm({ ...productForm, minStock: Number(e.target.value) })}
                     style={{ width: '100%', padding: '8px' }}
                   />
+                </div>
+              </div>
+
+              {/* QUY CÁCH BÁN NGUYÊN THÙNG / KIỆN (QUÉT MÃ VỎ THÙNG) */}
+              <div
+                style={{
+                  background: 'rgba(236, 72, 153, 0.08)',
+                  border: '1.5px dashed rgba(236, 72, 153, 0.4)',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.1rem' }}>📦</span>
+                    <strong style={{ fontSize: '0.88rem', color: '#ec4899' }}>
+                      Bán Nguyên Thùng / Lốc (Quét Mã Vạch Vỏ Thùng Carton)
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Bóp cò quét mã vỏ thùng -&gt; Tự động tính giá nguyên thùng &amp; trừ kho
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.2fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Mã Barcode Vỏ Thùng:</label>
+                    <input
+                      type="text"
+                      placeholder="VD: 18935001006..."
+                      value={productForm.caseBarcode || ''}
+                      onChange={(e) => setProductForm({ ...productForm, caseBarcode: e.target.value })}
+                      style={{ width: '100%', padding: '7px 8px', fontFamily: 'var(--font-mono)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Đơn Vị Thùng:</label>
+                    <input
+                      type="text"
+                      placeholder="Thùng, Lốc..."
+                      value={productForm.caseUnit || 'Thùng'}
+                      onChange={(e) => setProductForm({ ...productForm, caseUnit: e.target.value })}
+                      style={{ width: '100%', padding: '7px 8px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Số Lượng / Thùng:</label>
+                    <input
+                      type="number"
+                      placeholder="VD: 24"
+                      value={productForm.unitsPerCase || 24}
+                      onChange={(e) => setProductForm({ ...productForm, unitsPerCase: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 8px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Giá Bán Thùng (VNĐ):</label>
+                    <input
+                      type="number"
+                      placeholder="VD: 260.000"
+                      value={productForm.casePrice || ''}
+                      onChange={(e) => setProductForm({ ...productForm, casePrice: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 8px', color: '#ec4899', fontWeight: 700 }}
+                    />
+                  </div>
                 </div>
               </div>
 
