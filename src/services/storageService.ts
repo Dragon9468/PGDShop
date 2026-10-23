@@ -637,6 +637,30 @@ const INITIAL_INVENTORY_TRANSACTIONS: InventoryTransaction[] = [
     ],
     createdAt: '2026-10-15',
   },
+  {
+    id: 'inv-out-01',
+    slipCode: 'XK-202610-01',
+    type: 'OUT',
+    supplier: 'Xuất lên Kệ KE01-T1A',
+    totalCost: 185000,
+    notes: 'Xuất 1 thùng (24 lon) Nước Ngọt Coca Cola lon 320ml lên kệ KE01-T1A',
+    items: [
+      { productName: 'Nước Ngọt Coca Cola Lon 320ml', unit: 'thùng', quantity: 1, costPrice: 185000, total: 185000 },
+    ],
+    createdAt: '2026-10-18',
+  },
+  {
+    id: 'inv-out-02',
+    slipCode: 'XCB-202610-01',
+    type: 'OUT',
+    supplier: 'Quầy Pha Chế (Bar / F&B)',
+    totalCost: 4800000,
+    notes: 'Xuất 1 bao (30kg) Cà phê hạt Robusta Blend từ vị trí KHO01-KS02 cho Quầy Pha Chế phục vụ khách',
+    items: [
+      { productName: 'Cà phê hạt Robusta Blend (Bao Sỉ)', unit: 'Bao', quantity: 1, costPrice: 4800000, total: 4800000 },
+    ],
+    createdAt: '2026-10-20',
+  },
 ];
 
 const INITIAL_WHOLESALE_CUSTOMERS: WholesaleCustomer[] = [
@@ -1169,6 +1193,49 @@ class StorageService {
       supplier: 'Xuất lên Kệ ' + (targetShelfCode || targetProd?.shelfCode || 'KE01-T1A'),
       totalCost: bulkQuantity * whItem.importPrice,
       notes: `Xuất ${bulkQuantity} ${whItem.bulkUnit} (${addedUnits} ${whItem.packageSpec}) từ vị trí ${whItem.locationCode} ra kệ`,
+      items: [
+        {
+          productName: whItem.name,
+          unit: whItem.bulkUnit,
+          quantity: bulkQuantity,
+          costPrice: whItem.importPrice,
+          total: bulkQuantity * whItem.importPrice,
+        },
+      ],
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    this.addInventoryTransaction(newTx);
+    return true;
+  }
+
+  // Xuất kho cho quầy chế biến (F&B / Pha chế): Trừ số lượng nguyên liệu trong kho và ghi nhận phiếu xuất kho chế biến
+  public transferWarehouseToPreparation(
+    warehouseItemId: string,
+    bulkQuantity: number,
+    purpose: string = 'Quầy Pha Chế (Bar / F&B)',
+    notes?: string
+  ): boolean {
+    const whList = this.getWarehouseItems();
+    const itemIndex = whList.findIndex((w) => w.id === warehouseItemId);
+    if (itemIndex === -1) return false;
+    const whItem = whList[itemIndex];
+    if (whItem.stockQuantity < bulkQuantity) return false;
+
+    whItem.stockQuantity -= bulkQuantity;
+    this.saveWarehouseItems(whList);
+
+    const unitsPerBulk = whItem.unitsPerBulk || 1;
+    const addedUnits = bulkQuantity * unitsPerBulk;
+
+    // Ghi log giao dịch xuất kho chế biến
+    const slipCode = `XCB-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(10 + Math.random() * 90)}`;
+    const newTx: InventoryTransaction = {
+      id: 'inv-out-cb-' + Date.now(),
+      slipCode,
+      type: 'OUT',
+      supplier: purpose,
+      totalCost: bulkQuantity * whItem.importPrice,
+      notes: notes || `Xuất ${bulkQuantity} ${whItem.bulkUnit} (${addedUnits} ${whItem.packageSpec}) từ vị trí ${whItem.locationCode} cho ${purpose}`,
       items: [
         {
           productName: whItem.name,

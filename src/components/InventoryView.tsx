@@ -35,6 +35,7 @@ import {
   CheckCircle,
   Truck,
   Image as ImageIcon,
+  Coffee,
 } from 'lucide-react';
 
 const BULK_PRESET_IMAGES = [
@@ -63,7 +64,7 @@ export const InventoryView: React.FC = () => {
 
   // Modal / Menu riêng xem LỊCH SỬ NHẬP XUẤT KHO theo yêu cầu người dùng
   const [isHistoryMenuOpen, setIsHistoryMenuOpen] = useState(false);
-  const [historyFilterType, setHistoryFilterType] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
+  const [historyFilterType, setHistoryFilterType] = useState<'ALL' | 'IN' | 'OUT' | 'OUT_SHELF' | 'OUT_PREP'>('ALL');
 
   // Modal Tạo Phiếu Nhập Kho Mới
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -81,11 +82,15 @@ export const InventoryView: React.FC = () => {
     imageUrl: '',
   });
 
-  // Modal Xuất Kho Lên Kệ Bán Lẻ
+  // Modal Xuất Kho (Lên Kệ Bán Lẻ HOẶC Cho Quầy Chế Biến)
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferringItem, setTransferringItem] = useState<WarehouseItem | null>(null);
+  const [transferType, setTransferType] = useState<'SHELF' | 'PREPARATION'>('SHELF');
   const [transferBulkQty, setTransferBulkQty] = useState(1);
   const [targetShelfCode, setTargetShelfCode] = useState('KE01-T1A');
+  const [prepDepartment, setPrepDepartment] = useState('Quầy Pha Chế (Bar / Cà phê / Trà)');
+  const [prepTargetRecipe, setPrepTargetRecipe] = useState('');
+  const [prepNotes, setPrepNotes] = useState('');
 
   // Modal Thêm Vị Trí Kho Mới (Chuẩn: KHO01-KS01)
   const [isAddLocationModalOpen, setIsAddLocationModalOpen] = useState(false);
@@ -143,16 +148,20 @@ export const InventoryView: React.FC = () => {
     return matchCat && matchQuery;
   });
 
-  // Mở modal xuất kho lên kệ
-  const handleOpenTransfer = (item: WarehouseItem) => {
+  // Mở modal xuất kho (lên kệ hoặc cho chế biến)
+  const handleOpenTransfer = (item: WarehouseItem, defaultType: 'SHELF' | 'PREPARATION' = 'SHELF') => {
     setTransferringItem(item);
     setTransferBulkQty(1);
+    setTransferType(defaultType);
     const matched = products.find((p) => p.id === item.linkedShelfProductId);
     setTargetShelfCode(matched?.shelfCode || 'KE01-T1A');
+    setPrepDepartment(item.category === 'BaoBi' ? 'Quầy Đóng Gói & Pha Chế' : 'Quầy Pha Chế (Bar / Cà phê / Trà)');
+    setPrepTargetRecipe('');
+    setPrepNotes('');
     setIsTransferModalOpen(true);
   };
 
-  // Xác nhận xuất kho lên kệ
+  // Xác nhận xuất kho (lên kệ hoặc cho chế biến)
   const handleConfirmTransfer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!transferringItem || transferBulkQty <= 0) return;
@@ -162,16 +171,31 @@ export const InventoryView: React.FC = () => {
       return;
     }
 
-    const success = storageService.transferWarehouseToShelf(
-      transferringItem.id,
-      transferBulkQty,
-      targetShelfCode
-    );
+    if (transferType === 'SHELF') {
+      const success = storageService.transferWarehouseToShelf(
+        transferringItem.id,
+        transferBulkQty,
+        targetShelfCode
+      );
 
-    if (success) {
-      alert(`Đã xuất thành công ${transferBulkQty} ${transferringItem.bulkUnit} (${transferBulkQty * (transferringItem.unitsPerBulk || 1)} đơn vị lẻ) ra Kệ ${targetShelfCode}!`);
-      setIsTransferModalOpen(false);
-      reloadData();
+      if (success) {
+        alert(`Đã xuất thành công ${transferBulkQty} ${transferringItem.bulkUnit} (${transferBulkQty * (transferringItem.unitsPerBulk || 1)} đơn vị lẻ) ra Kệ ${targetShelfCode}!`);
+        setIsTransferModalOpen(false);
+        reloadData();
+      }
+    } else {
+      const success = storageService.transferWarehouseToPreparation(
+        transferringItem.id,
+        transferBulkQty,
+        prepDepartment,
+        prepNotes || (prepTargetRecipe ? `Xuất cho món: ${prepTargetRecipe}` : undefined)
+      );
+
+      if (success) {
+        alert(`Đã xuất thành công ${transferBulkQty} ${transferringItem.bulkUnit} (${transferBulkQty * (transferringItem.unitsPerBulk || 1)} đơn vị) cho ${prepDepartment}!`);
+        setIsTransferModalOpen(false);
+        reloadData();
+      }
     }
   };
 
@@ -668,25 +692,47 @@ export const InventoryView: React.FC = () => {
 
                   {/* CỤM NÚT THAO TÁC CHO MẶT HÀNG KHO */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                    {/* Nút Xuất Lên Kệ Bán Lẻ (Bao gồm chuyển đổi quy cách) */}
-                    <button
-                      onClick={() => handleOpenTransfer(item)}
-                      className="btn btn-primary"
-                      style={{
-                        padding: '7px 10px',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                      title="Xuất từ Kho ra Kệ hàng bán lẻ (VD: Xuất 1 thùng 24 lon ra kệ)"
-                    >
-                      <Send size={14} />
-                      <span>Xuất Lên Kệ Bán Lẻ</span>
-                    </button>
+                    {/* Nút Xuất Kệ & Nút Xuất Chế Biến */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      <button
+                        onClick={() => handleOpenTransfer(item, 'SHELF')}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '7px 6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                        }}
+                        title="Xuất từ Kho ra Kệ hàng bán lẻ (VD: Xuất 1 thùng 24 lon ra kệ)"
+                      >
+                        <Send size={13} />
+                        <span>Xuất Kệ</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenTransfer(item, 'PREPARATION')}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '7px 6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                        }}
+                        title="Xuất nguyên liệu từ Kho cho Quầy Chế Biến / Pha Chế (F&B)"
+                      >
+                        <Coffee size={13} />
+                        <span>Xuất Chế Biến</span>
+                      </button>
+                    </div>
 
                     {/* Nút Sửa / Xóa: Ẩn khi Khóa, hiện khi Mở Khóa */}
                     {!isLocked && (
@@ -828,7 +874,7 @@ export const InventoryView: React.FC = () => {
             </div>
 
             {/* Bộ lọc loại phiếu */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <button
                 className={`cat-pill ${historyFilterType === 'ALL' ? 'active' : ''}`}
                 onClick={() => setHistoryFilterType('ALL')}
@@ -839,13 +885,19 @@ export const InventoryView: React.FC = () => {
                 className={`cat-pill ${historyFilterType === 'IN' ? 'active' : ''}`}
                 onClick={() => setHistoryFilterType('IN')}
               >
-                📥 Phiếu Nhập Kho ({transactions.filter((t) => t.type === 'IN').length})
+                📥 Nhập Kho ({transactions.filter((t) => t.type === 'IN').length})
               </button>
               <button
-                className={`cat-pill ${historyFilterType === 'OUT' ? 'active' : ''}`}
-                onClick={() => setHistoryFilterType('OUT')}
+                className={`cat-pill ${historyFilterType === 'OUT_SHELF' ? 'active' : ''}`}
+                onClick={() => setHistoryFilterType('OUT_SHELF')}
               >
-                📤 Phiếu Xuất Kho ({transactions.filter((t) => t.type === 'OUT').length})
+                📤 Xuất Lên Kệ ({transactions.filter((t) => t.type === 'OUT' && !t.slipCode.startsWith('XCB') && !t.supplier.includes('Chế Biến')).length})
+              </button>
+              <button
+                className={`cat-pill ${historyFilterType === 'OUT_PREP' ? 'active' : ''}`}
+                onClick={() => setHistoryFilterType('OUT_PREP')}
+              >
+                ☕ Xuất Chế Biến ({transactions.filter((t) => t.type === 'OUT' && (t.slipCode.startsWith('XCB') || t.supplier.includes('Chế Biến'))).length})
               </button>
             </div>
 
@@ -865,19 +917,33 @@ export const InventoryView: React.FC = () => {
                 </thead>
                 <tbody>
                   {transactions
-                    .filter((t) => historyFilterType === 'ALL' || t.type === historyFilterType)
-                    .map((tx) => (
-                      <tr key={tx.id}>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {tx.slipCode}
-                        </td>
-                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{tx.createdAt}</td>
-                        <td>
-                          <span className={`badge ${tx.type === 'IN' ? 'badge-success' : 'badge-primary'}`}>
-                            {tx.type === 'IN' ? '📥 Nhập Kho' : '📤 Xuất Kho'}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 600, fontSize: '0.88rem' }}>{tx.supplier}</td>
+                    .filter((t) => {
+                      if (historyFilterType === 'ALL') return true;
+                      if (historyFilterType === 'IN') return t.type === 'IN';
+                      if (historyFilterType === 'OUT_SHELF') return t.type === 'OUT' && !t.slipCode.startsWith('XCB') && !t.supplier.includes('Chế Biến');
+                      if (historyFilterType === 'OUT_PREP') return t.type === 'OUT' && (t.slipCode.startsWith('XCB') || t.supplier.includes('Chế Biến'));
+                      return true;
+                    })
+                    .map((tx) => {
+                      const isPrepOut = tx.type === 'OUT' && (tx.slipCode.startsWith('XCB') || tx.supplier.includes('Chế Biến'));
+                      return (
+                        <tr key={tx.id}>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {tx.slipCode}
+                          </td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{tx.createdAt}</td>
+                          <td>
+                            {tx.type === 'IN' ? (
+                              <span className="badge badge-success">📥 Nhập Kho</span>
+                            ) : isPrepOut ? (
+                              <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.35)', fontWeight: 700 }}>
+                                ☕ Xuất Chế Biến
+                              </span>
+                            ) : (
+                              <span className="badge badge-primary">📤 Xuất Lên Kệ</span>
+                            )}
+                          </td>
+                          <td style={{ fontWeight: 600, fontSize: '0.88rem' }}>{tx.supplier}</td>
                         <td>
                           {tx.items?.map((it, idx) => (
                             <div key={idx} style={{ fontSize: '0.84rem' }}>
@@ -890,7 +956,8 @@ export const InventoryView: React.FC = () => {
                         </td>
                         <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{tx.notes}</td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -905,34 +972,94 @@ export const InventoryView: React.FC = () => {
       )}
 
       {/* ==============================================================================
-          MODAL: XUẤT KHO LÊN KỆ BÁN LẺ
+          MODAL: XUẤT KHO (LÊN KỆ HOẶC CHO CHẾ BIẾN)
           ============================================================================== */}
       {isTransferModalOpen && transferringItem && (
         <div className="modal-overlay" onClick={() => setIsTransferModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Send size={22} color="#10b981" />
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Xuất Kho Lên Kệ Bán Lẻ</h3>
+                {transferType === 'SHELF' ? (
+                  <Send size={22} color="#10b981" />
+                ) : (
+                  <Coffee size={22} color="#f59e0b" />
+                )}
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+                  Xuất Kho {transferType === 'SHELF' ? 'Lên Kệ Bán Lẻ' : 'Cho Quầy Chế Biến (F&B)'}
+                </h3>
               </div>
               <button onClick={() => setIsTransferModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
+            {/* TAB CHUYỂN ĐỔI MỤC ĐÍCH XUẤT */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setTransferType('SHELF')}
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: transferType === 'SHELF' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                  background: transferType === 'SHELF' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  color: transferType === 'SHELF' ? '#10b981' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Send size={15} />
+                <span>1. Xuất Lên Kệ Bán Lẻ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTransferType('PREPARATION')}
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: transferType === 'PREPARATION' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
+                  background: transferType === 'PREPARATION' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  color: transferType === 'PREPARATION' ? '#f59e0b' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Coffee size={15} />
+                <span>2. Xuất Cho Quầy Chế Biến</span>
+              </button>
+            </div>
+
             <form onSubmit={handleConfirmTransfer} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '12px', borderRadius: '8px' }}>
+              {/* THÔNG TIN MẶT HÀNG KHO */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '12px 14px', borderRadius: '8px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>{transferringItem.name}</div>
                 <div style={{ fontSize: '0.85rem', color: '#818cf8', marginTop: '2px' }}>
-                  Quy cách sỉ: <b>{transferringItem.packageSpec}</b> ({transferringItem.unitsPerBulk || 1} đơn vị lẻ / {transferringItem.bulkUnit})
+                  Quy cách sỉ: <b>{transferringItem.packageSpec}</b> ({transferringItem.unitsPerBulk || 1} đơn vị / {transferringItem.bulkUnit})
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Tồn kho hiện tại: <b style={{ color: '#10b981' }}>{transferringItem.stockQuantity} {transferringItem.bulkUnit}</b> (Vị trí {transferringItem.locationCode})
+                  Vị trí kho hiện tại: <b style={{ color: '#38bdf8' }}>{transferringItem.locationCode}</b> ({explainWarehouseCode(transferringItem.locationCode)})
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Tồn kho khả dụng: <b style={{ color: '#10b981' }}>{transferringItem.stockQuantity} {transferringItem.bulkUnit}</b>
                 </div>
               </div>
 
+              {/* SỐ LƯỢNG XUẤT */}
               <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Số lượng quy cách sỉ muốn xuất ra kệ:</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Số lượng quy cách sỉ muốn xuất ({transferringItem.bulkUnit}):
+                </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
                   <input
                     type="number"
@@ -947,49 +1074,101 @@ export const InventoryView: React.FC = () => {
                     {transferringItem.bulkUnit}
                   </span>
                   <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                    (= <b>{transferBulkQty * (transferringItem.unitsPerBulk || 1)}</b> đơn vị bán lẻ lên kệ)
+                    (= <b>{transferBulkQty * (transferringItem.unitsPerBulk || 1)}</b> đơn vị {transferType === 'SHELF' ? 'lẻ lên kệ' : 'nguyên liệu pha chế'})
                   </span>
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Vị trí kệ nhận hàng trưng bày:</label>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                  <input
-                    type="text"
-                    required
-                    value={targetShelfCode}
-                    onChange={(e) => setTargetShelfCode(e.target.value.toUpperCase())}
-                    placeholder="VD: KE01-T1A"
-                    style={{ flex: 1, padding: '10px', fontFamily: 'var(--font-mono)' }}
-                  />
-                  <select
-                    value={targetShelfCode}
-                    onChange={(e) => setTargetShelfCode(e.target.value)}
-                    style={{ padding: '10px', maxWidth: '240px' }}
-                  >
-                    <option value="">-- Chọn nhanh kệ --</option>
-                    {storageService.getShelves().map((s) => (
-                      <option key={s.id} value={s.code}>
-                        {s.code} ({explainShelfCode(s.code)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {targetShelfCode && (
-                  <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px' }}>
-                    👉 {explainShelfCode(targetShelfCode)}
+              {/* NƠI NHẬN HÀNG: KỆ HOẶC CHẾ BIẾN */}
+              {transferType === 'SHELF' ? (
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Vị trí kệ nhận hàng trưng bày:</label>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <input
+                      type="text"
+                      required
+                      value={targetShelfCode}
+                      onChange={(e) => setTargetShelfCode(e.target.value.toUpperCase())}
+                      placeholder="VD: KE01-T1A"
+                      style={{ flex: 1, padding: '10px', fontFamily: 'var(--font-mono)' }}
+                    />
+                    <select
+                      value={targetShelfCode}
+                      onChange={(e) => setTargetShelfCode(e.target.value)}
+                      style={{ padding: '10px', maxWidth: '240px' }}
+                    >
+                      <option value="">-- Chọn nhanh kệ --</option>
+                      {storageService.getShelves().map((s) => (
+                        <option key={s.id} value={s.code}>
+                          {s.code} ({explainShelfCode(s.code)})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
+                  {targetShelfCode && (
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px' }}>
+                      👉 {explainShelfCode(targetShelfCode)}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Bộ phận nhận nguyên liệu:</label>
+                    <select
+                      value={prepDepartment}
+                      onChange={(e) => setPrepDepartment(e.target.value)}
+                      style={{ width: '100%', padding: '10px', marginTop: '6px' }}
+                    >
+                      <option value="Quầy Pha Chế (Bar / Cà phê / Trà)">Quầy Pha Chế (Bar / Cà phê / Trà)</option>
+                      <option value="Bếp Chế Biến (Đồ ăn / Bánh mì)">Bếp Chế Biến (Đồ ăn / Bánh mì)</option>
+                      <option value="Quầy Đóng Gói & Pha Chế">Quầy Đóng Gói &amp; Pha Chế</option>
+                      <option value="Tủ Bảo Quản Pha Chế Tại Quầy">Tủ Bảo Quản Pha Chế Tại Quầy</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Món chế biến sử dụng (Tùy chọn):</label>
+                    <select
+                      value={prepTargetRecipe}
+                      onChange={(e) => setPrepTargetRecipe(e.target.value)}
+                      style={{ width: '100%', padding: '10px', marginTop: '6px' }}
+                    >
+                      <option value="">-- Dùng chung cho Quầy Chế Biến --</option>
+                      {storageService.getRecipes().map((r) => (
+                        <option key={r.id} value={r.productName}>
+                          {r.productName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ghi chú phiếu xuất chế biến (Tùy chọn):</label>
+                    <input
+                      type="text"
+                      placeholder="VD: Xuất 1 bao phục vụ ca sáng..."
+                      value={prepNotes}
+                      onChange={(e) => setPrepNotes(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', marginTop: '6px' }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsTransferModalOpen(false)}>
                   Hủy
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ background: '#10b981' }}>
-                  Xác Nhận Xuất Lên Kệ
-                </button>
+                {transferType === 'SHELF' ? (
+                  <button type="submit" className="btn btn-primary" style={{ background: '#10b981' }}>
+                    Xác Nhận Xuất Lên Kệ
+                  </button>
+                ) : (
+                  <button type="submit" className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', border: 'none' }}>
+                    Xác Nhận Xuất Cho Chế Biến
+                  </button>
+                )}
               </div>
             </form>
           </div>
